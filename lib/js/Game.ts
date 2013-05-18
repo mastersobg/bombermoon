@@ -103,6 +103,12 @@ class GameApp {
                     view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
                     anim.renderWidth, anim.renderHeight);
             }
+
+            if (view.type == Game.unit_explosion) {
+                var explosion = <Game.Explosion>view.unit;
+                var anim = this.getAnimation(explosion.team==1? "expl1":"expl2");
+                explosion.draw(anim, atlas, context);
+            }
         }
         context.restore();
     }
@@ -196,7 +202,7 @@ module Game {
     export var tile_entrance_free = 4, tile_exit_free = 5, tile_entrance1 = 6, tile_exit1 = 7;
     export var tile_entrance2 = 8, tile_exit2 = 9;
 
-    export var unit_char = 1, unit_bomb = 2;
+    export var unit_char = 1, unit_bomb = 2, unit_explosion = 3;
 
     export class State {
         beforeTick(): void {
@@ -433,6 +439,8 @@ module Game {
                 return new CharacterView(unit);
             if (unit.type == unit_bomb)
                 return new BombView(unit);
+            if (unit.type == unit_explosion)
+                return new ExplosionView(unit);
             return null;
         }
 
@@ -531,8 +539,120 @@ module Game {
 
         explode(): void {
 //            alert("Boom!");
-            this.gs.units.remove(this)
+            this.gs.units.add(new Explosion(this.x, this.y, this.team));
+            this.gs.units.remove(this);
         }
+    }
+
+    export class Explosion extends Unit {
+
+        team: number;
+        power: number = 3;
+        remove: bool = false;
+
+        constructor(x: number, y: number, team: number) {
+            super();
+            this.type = unit_explosion;
+            this.x = x;
+            this.y = y;
+            this.team = team;
+        }
+
+        nowTick(): void {
+            if (this.remove) {
+                this.gs.units.remove(this);
+            }
+            this.remove = true;
+        }
+
+        draw(anim: Animation, atlas, context): void {
+            var cells = [];
+            var explosionView = this.view;
+            var frame = (explosionView.step / anim.speed %anim.sizeX) | 0;
+
+            var dx = this.view.x + 0.5 - anim.renderWidth / 2;
+            var dy = this.view.y + 0.5 - anim.renderHeight / 2;
+
+            // central
+            cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy, x: dx, y : dy});
+            // up
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx;
+                var y = dy - i;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy - anim.frameHeight, x: x, y: y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + anim.frameHeight, x: x, y: y});
+                }
+            }
+
+            // down
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx;
+                var y = dy + i;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 2 * anim.frameHeight, x: x, y: y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + anim.frameHeight, x: x, y: y});
+                }
+            }
+
+            //left
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx - i;
+                var y = dy;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 5 * anim.frameHeight, x: x, y : y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 3 * anim.frameHeight, x: x, y : y});
+                }
+            }
+
+            //right
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx + i;
+                var y = dy;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 4 * anim.frameHeight, x: x, y : y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 3 * anim.frameHeight, x: x, y : y});
+                }
+            }
+
+            for (var el in cells) {
+                this.drawImage(context, atlas,
+                    cells[el].sx, cells[el].sy,
+                    anim.frameWidth, anim.frameHeight,
+                    cells[el].x, cells[el].y,
+                    anim.renderWidth, anim.renderHeight
+                );
+            }
+}
+
+        drawImage(context, atlas, sx, sy, sw, sh, x, y, w, h): void {
+            if (x >= 0 && x < this.gs.map.w && y >= 0 && y <= this.gs.map.h) {
+                context.drawImage(
+                    atlas,
+                    sx, sy,
+                    sw, sh,
+                    x, y,
+                    w, h
+                );
+            }
+        }
+
     }
 
 
@@ -602,6 +722,23 @@ module Game {
     }
 
     export class BombView extends LinearView {
+        step: number = 0;
+
+        constructor (unit: Unit) {
+            super(unit);
+        }
+
+        updateFrame(delta: number, frac: number) {
+            super.updateFrame(delta, frac);
+            this.step += delta;
+        }
+
+        updateTick() {
+            super.updateTick();
+        }
+    }
+
+    export class ExplosionView extends LinearView {
         step: number = 0;
 
         constructor (unit: Unit) {
