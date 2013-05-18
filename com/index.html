@@ -1,9 +1,9 @@
 <html>
 <script src="js/lib/jquery-1.9.1.min.js"></script>
-<script src="js/Game.js"></script>
+<script src="js/lib/require.js"></script>
 <script>
     function startup() {
-        app = new GameApp();
+        app = new View.GameApp();
         app.startTestServer();
     }
 
@@ -33,7 +33,7 @@
         expl2: {sy:11*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100}
     });
 
-    function imgOnLoad(err) {
+    function onLoad(err) {
         if (err)
             console.log(err);
         resLoaded++;
@@ -45,7 +45,7 @@
     function tryLoadImage(name, src) {
         resCount++;
         var img = new Image();
-        img.onload = imgOnLoad;
+        img.onload = onLoad;
         img.src = src;
         resources[name] = img;
     }
@@ -58,7 +58,12 @@
         })();
 
         tryLoadImage("tiles", "img/tiles.png");
-
+        resCount++;
+        require(["js/Game", "js/View"], function (Game, View) {
+            window.Game = Game;
+            window.View = View;
+            onLoad();
+        });
 
         var keyMask = 0;
         function keyDown(key) {

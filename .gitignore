@@ -1,5 +1,13 @@
 node/node_modules/
 .idea
-*.js
+Game.js
+View.js
+app.js
 *.js.map
-
+*.csproj
+*.suo
+*.user
+*.config
+*.sln
+bin
+obj
