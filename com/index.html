@@ -1,12 +1,73 @@
 <html>
-<script src="js/view.js"></script>
+<script src="js/lib/jquery-1.9.1.min.js"></script>
 <script src="js/Game.js"></script>
 <script>
-    function doIt() {
-        draw();
-    }
+    $(function() {
+        app = new GameApp();
+        app.startGame();
+
+        var docOnKeyDown = function(e) {
+            var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 32, 75, 17, 76, 13, 9, 80, 81, 73, 8 /* backspace */],
+                    code = e.keyCode ? e.keyCode : e.which;
+            switch (code) {
+                case 39:
+                case 68:
+                    app.setKeys(1);
+                    break;
+                case 38:
+                case 87:
+                    app.setKeys(4);
+                    break;
+                case 37:
+                case 65:
+                    app.setKeys(3);
+                    break;
+                case 40:
+                case 83:
+                    app.setKeys(2);
+                    break;
+            }
+
+            if (~__keys.indexOf(code)) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        }
+
+        var docOnKeyUp = function(e) {
+            var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 81, 8 /* backspace */],
+                    code = e.keyCode ? e.keyCode : e.which;
+            switch (code) {
+                case 39:
+                case 68:
+                    app.setKeys(0);
+                    break;
+                case 38:
+                case 87:
+                    app.setKeys(0);
+                    break;
+                case 37:
+                case 65:
+                    app.setKeys(0);
+                    break;
+                case 40:
+                case 83:
+                    app.setKeys(0);
+                    break;
+            }
+            if(~__keys.indexOf(code)){
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        }
+
+        $(document).on('keydown', docOnKeyDown);
+        $(document).on('keyup', docOnKeyUp);
+
+    });
+
 </script>
-<body onload="doIt()">
+<body>
 <canvas id="canvas0" width="640" height="480"></canvas>
 </body>
 </html>
