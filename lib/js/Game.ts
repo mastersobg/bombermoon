@@ -1,21 +1,40 @@
 var canvas : HTMLCanvasElement;
 
+interface Animation {
+    sx: number;
+    sy: number;
+    sizeX: number;
+    sizeY: number;
+    frameWidth: number;
+    frameHeight: number;
+    renderWidth: number;
+    renderHeight: number;
+    speed: number;
+}
+
 class GameApp {
     constructor () {
         canvas = <HTMLCanvasElement>document.getElementById("canvas0");
     }
 
-    public gs: Game.GameState;
-
-    setKeys(side) {
-        if (this.gs.client.mainCharacter)
-            this.gs.client.mainCharacter.keys = side;
+    getAnimation(name: string): Animation {
+        return (<any> window).animations[name];
     }
+
+    getResource(name: string): HTMLImageElement {
+        return (<any> window).resources[name];
+    }
+
+    public gs: Game.GameState;
 
     static refreshTime: number = 333;
     prevTime: number = 0;
     prevUpdate: number = 0;
     animID: number = 0;
+
+    setKeys(side) {
+        this.gs.client.key.setKeys(side);
+    }
 
     startGame() {
         this.gs = new Game.GameState(false);
@@ -50,24 +69,33 @@ class GameApp {
     draw() {
         var zoom = 32;
         var context = canvas.getContext("2d");
+        var atlas = this.getResource("tiles");
+        var tiles = this.getAnimation("tiles");
         context.save();
         context.translate(zoom, zoom);
         context.scale(zoom, zoom);
         var w = this.gs.map.w, h = this.gs.map.h;
-        var tileImg = (<any>window).resources["tiles"];
-        var frameWidth = 16;
-        var tileRow = tileImg.width / frameWidth | 0;
         for (var x=-1; x<=w; x++)
             for (var y=-1; y<=h; y++)
             {
                 var tile = this.tileOf(x, y);
-                context.drawImage(tileImg, (tile % tileRow) * frameWidth, (tile / tileRow | 0) * frameWidth, frameWidth, frameWidth, x, y, 1, 1);
+                context.drawImage(atlas, (tile % tiles.sizeX) * tiles.frameWidth, (tile / tiles.sizeX | 0) * tiles.frameWidth,
+                        tiles.frameWidth, tiles.frameWidth,
+                        x, y, 1, 1);
             }
         context.fillStyle="green";
         for (var id in this.gs.client.views) {
             var view = this.gs.client.views[id];
             if (view.type==Game.unit_char) {
-                context.fillRect(view.x + 0.2, view.y + 0.2, 0.6, 0.6);
+                var char = <Game.Character>view.unit;
+                var charView = <Game.CharacterView>view;
+                var anim = this.getAnimation(char.team==1?"char1":"char2");
+                var frame = (charView.step / anim.speed %anim.sizeX) | 0;
+                context.drawImage(atlas,
+                    anim.sx + frame * anim.frameWidth, anim.sy + charView.side * anim.frameHeight,
+                    anim.frameWidth, anim.frameHeight,
+                    view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
+                    anim.renderWidth, anim.renderHeight);
             }
         }
         context.restore();
@@ -109,6 +137,7 @@ module Game {
 
         x: number;
         y: number;
+        player: number = 0;
 
         joinGameState(gs): void {
             this.gs = gs;
@@ -256,28 +285,74 @@ module Game {
         }
     }
 
-    export class GameClient extends State {
+    export class KeyController extends State {
         constructor (public gs: GameState) {
             super();
             gs.childs.push(this);
         }
 
+
+        keysReset: bool = false;
+        wasKeys: bool = false;
+        go: number = 0;
+
+        setKeys(side) {
+            if (side==0) {
+                if (this.wasKeys)
+                    this.keysReset = true;
+                else this.go = side;
+            }
+            else {
+                this.go = side;
+                this.wasKeys = true;
+            }
+        }
+
+        beforeTick() {
+            var char = this.gs.client.mainCharacter;
+            if (char)
+                char.keys = this.go;
+            if (this.keysReset) {
+                this.go = 0;
+                this.keysReset = false;
+            }
+            this.wasKeys = false;
+        }
+    }
+
+    export class GameClient extends State {
+        constructor (public gs: GameState) {
+            super();
+            gs.childs.push(this);
+            this.key = new KeyController(gs);
+        }
+
+        key: KeyController;
         mainCharacter: Character = null;
         views: UnitView[] = [];
 
         createView(unit: Unit) {
             if (unit.type == unit_char)
-                return new LinearView(unit);
+                return new CharacterView(unit);
             return null;
         }
 
         nowTick() {
             if (this.mainCharacter == null) {
                 var c = new Character();
+                c.player = 1;
+                c.team = 1;
                 this.mainCharacter = c;
                 var point = this.gs.map.findFreePlace();
                 c.x = point.x;
                 c.y = point.y;
+                this.gs.units.add(c);
+
+                c = new Character();
+                c.player = 2;
+                c.team = 2;
+                c.x = this.gs.map.w - point.x;
+                c.y = this.gs.map.h - point.y;
                 this.gs.units.add(c);
             }
         }
@@ -308,6 +383,7 @@ module Game {
         static dx = [0, 1, 0, -1, 0];
         static dy = [0, 0, 1, 0, -1];
 
+        team : number = 0;
         keys: number = 0;
 
         constructor () {
@@ -365,6 +441,31 @@ module Game {
             this.prevY = this.tickY;
             this.tickX = this.unit.x;
             this.tickY = this.unit.y;
+        }
+    }
+
+    export class CharacterView extends LinearView {
+        static rows = [0, 2, 0, 3, 1];
+        step: number = 0;
+        side: number = rows[0];
+        constructor (unit: Unit) {
+            super(unit);
+        }
+        go: bool = false;
+
+        updateFrame(delta: number, frac: number) {
+            super.updateFrame(delta, frac);
+            if (this.go)
+                this.step += delta;
+            else this.step = 0;
+        }
+
+        updateTick() {
+            super.updateTick();
+            var keys = (<Character>this.unit).keys;
+            this.go = keys != 0;
+            if (this.go)
+                this.side = CharacterView.rows[keys];
         }
     }
 }

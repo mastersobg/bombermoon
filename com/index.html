@@ -7,8 +7,27 @@
         app.startGame();
     }
 
+    function addAnimations(zoom, anims) {
+        for (var id in anims) {
+            var anim = anims[id];
+            anim.frameWidth = anim.frameWidth || zoom;
+            anim.frameHeight = anim.frameHeight || zoom;
+            anim.renderWidth = anim.frameWidth / zoom;
+            anim.renderHeight = anim.frameHeight / zoom;
+            animations[id] = anim;
+        }
+    }
+
     var resLoaded = 0, resCount = 0;
     window.resources = {}
+    window.animations = {}
+
+    var defZoom = 32;
+    addAnimations(defZoom, {
+        tiles: {sx:0, sy:0, sizeX: 7, sizeY: 5},
+        char1: {sy:5*defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100},
+        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 1, sizeY: 4, speed: 100}
+    });
 
     function imgOnLoad(err) {
         if (err)
@@ -35,25 +54,46 @@
         })();
 
         tryLoadImage("tiles", "img/tiles.png");
+
+
+        var keyMask = 0;
+        function keyDown(key) {
+            var mask = (1<<key);
+            if ((keyMask & mask) == 0) {
+                keyMask ^= mask;
+                app.setKeys(key);
+            }
+        }
+        function keyUp(key) {
+            var mask = (1<<key);
+            if ((keyMask & mask) != 0) {
+                keyMask ^= mask;
+                for (var i=1; i<=4; i++)
+                    if ((keyMask & (1<i))!=0)
+                        return app.setKeys(i);
+                app.setKeys(0);
+            }
+        }
+
         var docOnKeyDown = function(e) {
             var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 32, 75, 17, 76, 13, 9, 80, 81, 73, 8 /* backspace */],
                     code = e.keyCode ? e.keyCode : e.which;
             switch (code) {
                 case 39:
                 case 68:
-                    app.setKeys(1);
+                    keyDown(1);
                     break;
                 case 38:
                 case 87:
-                    app.setKeys(4);
+                    keyDown(4);
                     break;
                 case 37:
                 case 65:
-                    app.setKeys(3);
+                    keyDown(3);
                     break;
                 case 40:
                 case 83:
-                    app.setKeys(2);
+                    keyDown(2);
                     break;
             }
 
@@ -69,19 +109,19 @@
             switch (code) {
                 case 39:
                 case 68:
-                    app.setKeys(0);
+                    keyUp(1);
                     break;
                 case 38:
                 case 87:
-                    app.setKeys(0);
+                    keyUp(4);
                     break;
                 case 37:
                 case 65:
-                    app.setKeys(0);
+                    keyUp(3);
                     break;
                 case 40:
                 case 83:
-                    app.setKeys(0);
+                    keyUp(2);
                     break;
             }
             if(~__keys.indexOf(code)){
