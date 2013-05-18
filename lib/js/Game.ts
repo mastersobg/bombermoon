@@ -99,11 +99,9 @@ module Game {
                     this.list[j] = this.list[i];
                     this.list[j].index = j;
                 }
-            while (this.list.length>j)
-
-
-
-            this.list.pop();
+            while (this.list.length>j) {
+                this.list.pop();
+            }
             this.prevListSize = 0;
         }
     }
