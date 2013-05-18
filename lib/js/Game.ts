@@ -58,6 +58,10 @@ class GameApp {
         this.gs.client.key.setKeys(side);
     }
 
+    keyBomb() {
+        this.gs.client.key.bomb();
+    }
+
     tilesManager: Tile;
 
     startGame() {
@@ -134,6 +138,24 @@ class GameApp {
                     view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
                     anim.renderWidth, anim.renderHeight);
             }
+
+            if (view.type == Game.unit_bomb) {
+                var bomb = <Game.Bomb>view.unit;
+                var bombView = <Game.BombView>view;
+                var anim = this.getAnimation(bomb.team==1? "bomb1":"bomb2");
+                var frame = (bombView.step / anim.speed %anim.sizeX) | 0;
+                context.drawImage(atlas,
+                    anim.sx + frame * anim.frameWidth, anim.sy,
+                    anim.frameWidth, anim.frameHeight,
+                    view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
+                    anim.renderWidth, anim.renderHeight);
+            }
+
+            if (view.type == Game.unit_explosion) {
+                var explosion = <Game.Explosion>view.unit;
+                var anim = this.getAnimation(explosion.team==1? "expl1":"expl2");
+                explosion.draw(anim, atlas, context);
+            }
         }
         context.restore();
     }
@@ -141,10 +163,10 @@ class GameApp {
 
 class Tile {
 
-    constructor(private gs: Game.GameState, private per_row : number) {}
+    constructor(private gs: Game.GameState, private cols_per_row : number) {}
 
     get(row: number, col: number) {
-        return row * this.per_row + col;
+        return row * this.cols_per_row + col;
     }
 
     tileOf(x: number, y: number): number {
@@ -226,9 +248,9 @@ module Game {
     export var tile_road1 = 4, tile_road2 = 5;
     export var tile_entrance_free = 4, tile_exit_free = 5, tile_entrance1 = 6, tile_exit1 = 7;
     export var tile_entrance2 = 8, tile_exit2 = 9;
-    export var ORDER_TICK = 1, ORDER_KEY = 2;
+    export var ORDER_TICK = 1, ORDER_KEY = 2, ORDER_BOMB = 3;
 
-    export var unit_char = 1, unit_bomb = 2;
+    export var unit_char = 1, unit_bomb = 2, unit_explosion = 3;
 
     export class State {
         beforeTick(): void {
@@ -308,12 +330,18 @@ module Game {
                 this.childs[i].nowTick();
         }
         afterTick(): void {
-            this.modMask = 0;
             for (var i=0;i<this.childs.length; i++) {
                 this.childs[i].afterTick();
+            }
+        }
+
+        getModMask() {
+            this.modMask = 0;
+            for (var i=0;i<this.childs.length; i++) {
                 if (this.childs[i].hasChanges())
                     this.modMask |= (1<<i);
             }
+            return this.modMask;
         }
 
         modMask : number = 0;
@@ -335,7 +363,7 @@ module Game {
             }
         }
         encode(buf: Buffer): void {
-            var modMask = this.modMask;
+            var modMask = this.getModMask();
             buf.push(modMask);
             for (var i=0; i<this.childs.length; i++) {
                 if ((modMask & (1<<i)) !=0)
@@ -343,7 +371,7 @@ module Game {
             }
         }
         hasChanges(): bool {
-            return this.modMask != 0;
+            return this.getModMask() != 0;
         }
     }
 
@@ -378,11 +406,11 @@ module Game {
 
         load(buf: Buffer, modified) {
             this.modified = modified;
-            if ((modified & Unit.BIT_CONSTANT)) {
+            if ((modified & Unit.BIT_CONSTANT)!=0) {
                 this.id = buf.pop();
                 this.player = buf.pop();
             }
-            if ((modified & Unit.BIT_POS)) {
+            if ((modified & Unit.BIT_POS)!=0) {
                 var p = buf.pop();
                 this.x = p&255;
                 this.y = p>>8;
@@ -390,11 +418,11 @@ module Game {
         }
 
         save(buf: Buffer, modified) {
-            if ((modified & Unit.BIT_CONSTANT)) {
+            if ((modified & Unit.BIT_CONSTANT)!=0) {
                 buf.push(this.id);
                 buf.push(this.player);
             }
-            if ((modified & Unit.BIT_POS)) {
+            if ((modified & Unit.BIT_POS)!=0) {
                 buf.push(this.x | (this.y<<8));
             }
         }
@@ -420,9 +448,6 @@ module Game {
         }
 
         hasChanges() : bool {
-            if (this.modified>0){
-                console.log("OW");
-            }
             return this.modified != 0;
         }
     }
@@ -441,6 +466,8 @@ module Game {
 
         createByUid(uid: number): Unit {
             if (uid == unit_char) return new Character();
+            if (uid == unit_bomb) return new Bomb();
+            if (uid == unit_explosion) return new Explosion();
             return null;
         }
 
@@ -485,7 +512,7 @@ module Game {
             var j = 0;
             for (var i=0; i<this.list.length; i++)
                 if (this.list[i]==null) {
-
+                    console.log("WWW");
                 } else {
                     this.list[j] = this.list[i];
                     this.list[j].index = j;
@@ -553,8 +580,10 @@ module Game {
             for (var i=0; i<prevListSize; i++)
                 if (this.list[i] == null)
                     masks[i>>5] |= (1<<(i&31));
-            for (var i=0;i<num;i++)
+            for (var i=0;i<num;i++) {
                 buf.push(masks[i]);
+                masks[i] = 0;
+            }
             for (var i=0; i<prevListSize; i++)
                 if (this.list[i] && this.list[i].hasChanges())
                     masks[i>>5] |= (1<<(i&31));
@@ -571,8 +600,10 @@ module Game {
             buf.push(sz);
             for (var i=prevListSize; i<this.list.length; i++) {
                 var unit = this.list[i];
-                buf.push(unit.type, "Unit type");
-                unit.encodeBoot(buf);
+                if (unit) {
+                    buf.push(unit.type, "Unit type");
+                    unit.encodeBoot(buf);
+                }
             }
         }
 
@@ -749,6 +780,8 @@ module Game {
         orders : Order[] = [];
 
         beforeTick() {
+            while (this.orders.length>0)
+                this.orders.pop();
             for (var i=0; i<this.observers.length; i++) {
                 var obs = this.observers[i];
                 if (obs.orders.length>0) {
@@ -820,6 +853,8 @@ module Game {
                 return new KeyOrder();
             if (id == ORDER_TICK)
                 return new TickOrder();
+            if (id == ORDER_BOMB)
+                return new BombOrder();
             return null;
         }
 
@@ -883,26 +918,39 @@ module Game {
         keysReset: bool = false;
         wasKeys: bool = false;
         go: number = 0;
+        setupBomb: bool = false;
 
         setKeys(side) {
             if (side==0) {
                 if (this.wasKeys)
                     this.keysReset = true;
                 else this.go = side;
-            }
-            else {
+            } else if (side == 5) {
+                this.setupBomb = true;
+                this.wasKeys = true;
+            } else {
                 this.go = side;
                 this.wasKeys = true;
             }
         }
 
+        bomb() {
+            this.setupBomb = true;
+        }
+
         nowTick() {
             var char = this.gs.client.mainCharacter;
             if (char) {
-                var o = new KeyOrder();
-                o.key = this.go;
-                this.gs.client.orders.push(o);
+                var t = new KeyOrder();
+                t.key = this.go;
+                this.gs.client.orders.push(t);
+                if (this.setupBomb)
+                {
+                    var t2 = new BombOrder();
+                    this.gs.client.orders.push(t2);
+                }
             }
+            this.setupBomb = false;
             if (this.keysReset) {
                 this.go = 0;
                 this.keysReset = false;
@@ -965,6 +1013,20 @@ module Game {
         }
     }
 
+    export class BombOrder extends Order{
+        constructor () {
+            super();
+            this.type = ORDER_BOMB;
+        }
+
+        execute(gs: GameState) {
+            var char = gs.units.characterByPlayerId[this.player];
+            if (char) {
+                char.placeBomb();
+            }
+        }
+    }
+
     export class GameClient extends State {
         constructor (public gs: GameState) {
             super();
@@ -978,9 +1040,13 @@ module Game {
         outBuf = new ArrBuffer([]);
         playerId: number;
 
-        createView(unit: Unit) {
+        createView(unit: Unit): UnitView {
             if (unit.type == unit_char)
                 return new CharacterView(unit);
+            if (unit.type == unit_bomb)
+                return new BombView(unit);
+            if (unit.type == unit_explosion)
+                return new ExplosionView(unit);
             return null;
         }
 
@@ -1004,8 +1070,7 @@ module Game {
         afterTick() {
             var list = this.gs.units.list;
             for (var i=0; i<list.length; i++)
-                if (list[i].view == null)
-                {
+                if (list[i] && list[i].view == null) {
                     var view = this.createView(list[i]);
                     if (view!=null) {
                         list[i].view = view;
@@ -1054,6 +1119,7 @@ module Game {
 
         team: number = 0;
         keys: number = 0;
+        setupBomb: bool = false;
 
         constructor () {
             super();
@@ -1065,6 +1131,11 @@ module Game {
                 this.modified |= Unit.BIT_KEY;
                 this.keys = key;
             }
+        }
+
+        placeBomb() {
+            var bomb = new Bomb(this.x, this.y, this.team);
+            this.gs.units.add(bomb);
         }
 
         nowTick(): void {
@@ -1091,6 +1162,178 @@ module Game {
             super.save(buf, modified);
             if ((modified&Unit.BIT_KEY)!=0)
                 buf.push(this.keys);
+        }
+    }
+
+    export class Bomb extends Unit {
+
+        static DEFAULT_BOMB_TICKS = 5;
+
+        leftTicks: number;
+        team: number = 0;
+
+        constructor(x=0, y=0, team=0) {
+            super();
+            this.x=x;
+            this.y=y;
+            this.team=team;
+            this.type = unit_bomb;
+            this.leftTicks = Bomb.DEFAULT_BOMB_TICKS;
+        }
+
+        nowTick(): void {
+            --this.leftTicks;
+            if (this.gs.server && this.leftTicks <= 0) {
+                this.explode();
+            }
+        }
+
+        explode(): void {
+            this.gs.units.add(new Explosion(this.x, this.y, this.team));
+            this.gs.units.remove(this);
+        }
+
+        load(buf: Buffer, modified: number) {
+            super.load(buf, modified);
+            if ((modified&Unit.BIT_CONSTANT)!=0)
+                this.team = buf.pop();
+        }
+
+        save(buf: Buffer, modified: number) {
+            super.save(buf, modified);
+            if ((modified&Unit.BIT_CONSTANT)!=0)
+                buf.push(this.team);
+        }
+    }
+
+    export class Explosion extends Unit {
+
+        team: number;
+        power: number = 3;
+        remove: bool = false;
+
+        constructor(x: number=0, y: number=0, team: number=0) {
+            super();
+            this.type = unit_explosion;
+            this.x = x;
+            this.y = y;
+            this.team = team;
+        }
+
+        nowTick(): void {
+            if (!this.gs.server) return;
+            if (this.remove) {
+                this.gs.units.remove(this);
+            }
+            this.remove = true;
+        }
+
+        draw(anim: Animation, atlas, context): void {
+            var cells = [];
+            var explosionView = <ExplosionView>this.view;
+            var frame = (explosionView.step / anim.speed %anim.sizeX) | 0;
+
+            var dx = this.view.x + 0.5 - anim.renderWidth / 2;
+            var dy = this.view.y + 0.5 - anim.renderHeight / 2;
+
+            // central
+            cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy, x: dx, y : dy});
+            // up
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx;
+                var y = dy - i;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy - anim.frameHeight, x: x, y: y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + anim.frameHeight, x: x, y: y});
+                }
+            }
+
+            // down
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx;
+                var y = dy + i;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 2 * anim.frameHeight, x: x, y: y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + anim.frameHeight, x: x, y: y});
+                }
+            }
+
+            //left
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx - i;
+                var y = dy;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 5 * anim.frameHeight, x: x, y : y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 3 * anim.frameHeight, x: x, y : y});
+                }
+            }
+
+            //right
+            for (var i = 1; i <= this.power; ++i) {
+                var x = dx + i;
+                var y = dy;
+                if (this.gs.map.get(x, y) == Game.tile_unbreakable) {
+                    break;
+                }
+                if (i == this.power) {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 4 * anim.frameHeight, x: x, y : y});
+                } else {
+                    cells.push({sx: anim.sx + frame * anim.frameWidth, sy: anim.sy + 3 * anim.frameHeight, x: x, y : y});
+                }
+            }
+
+            for (var el in cells) {
+                this.cleanCell(cells[el].x, cells[el].y);
+                this.drawImage(context, atlas,
+                    cells[el].sx, cells[el].sy,
+                    anim.frameWidth, anim.frameHeight,
+                    cells[el].x, cells[el].y,
+                    anim.renderWidth, anim.renderHeight
+                );
+            }
+        }
+
+        cleanCell(x, y) {
+            this.gs.map.set(x, y, Game.tile_floor);
+        }
+        drawImage(context, atlas, sx, sy, sw, sh, x, y, w, h): void {
+            if (x >= 0 && x < this.gs.map.w && y >= 0 && y <= this.gs.map.h) {
+                context.drawImage(
+                    atlas,
+                    sx, sy,
+                    sw, sh,
+                    x, y,
+                    w, h
+                );
+            }
+        }
+
+        load(buf: Buffer, modified: number) {
+            super.load(buf, modified);
+            if ((modified&Unit.BIT_CONSTANT)!=0) {
+                this.team = buf.pop();
+                this.power = buf.pop();
+            }
+        }
+
+        save(buf: Buffer, modified: number) {
+            super.save(buf, modified);
+            if ((modified&Unit.BIT_CONSTANT)!=0) {
+                buf.push(this.team);
+                buf.push(this.power);
+            }
         }
     }
 
@@ -1157,6 +1400,40 @@ module Game {
             this.go = keys != 0;
             if (this.go)
                 this.side = CharacterView.rows[keys];
+        }
+    }
+
+    export class BombView extends LinearView {
+        step: number = 0;
+
+        constructor (unit: Unit) {
+            super(unit);
+        }
+
+        updateFrame(delta: number, frac: number) {
+            super.updateFrame(delta, frac);
+            this.step += delta;
+        }
+
+        updateTick() {
+            super.updateTick();
+        }
+    }
+
+    export class ExplosionView extends LinearView {
+        step: number = 0;
+
+        constructor (unit: Unit) {
+            super(unit);
+        }
+
+        updateFrame(delta: number, frac: number) {
+            super.updateFrame(delta, frac);
+            this.step += delta;
+        }
+
+        updateTick() {
+            super.updateTick();
         }
     }
 }

@@ -26,7 +26,11 @@
     addAnimations(defZoom, {
         tiles: {sx:0, sy:0, sizeX: 8, sizeY: 5},
         char1: {sy:5*defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100},
-        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 1, sizeY: 4, speed: 100}
+        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 1, sizeY: 4, speed: 100},
+        bomb1: {sy:9*defZoom, sx:0, sizeX: 4, sizeY: 1, speed: 100},
+        bomb2: {sy:9*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100},
+        expl1: {sy:11*defZoom, sx: 0, sizeX: 4, sizeY: 1, speed: 100},
+        expl2: {sy:11*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100}
     });
 
     function imgOnLoad(err) {
@@ -58,6 +62,7 @@
 
         var keyMask = 0;
         function keyDown(key) {
+            if (!app) return;
             var mask = (1<<key);
             if ((keyMask & mask) == 0) {
                 keyMask ^= mask;
@@ -65,6 +70,7 @@
             }
         }
         function keyUp(key) {
+            if (!app) return;
             var mask = (1<<key);
             if ((keyMask & mask) != 0) {
                 keyMask ^= mask;
@@ -94,6 +100,10 @@
                 case 40:
                 case 83:
                     keyDown(2);
+                    break;
+                case 75:
+                case 32:
+                    app.keyBomb();
                     break;
             }
 
