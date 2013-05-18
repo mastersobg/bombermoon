@@ -12,12 +12,32 @@ class GameApp {
             this.gs.client.mainCharacter.keys = side;
     }
 
+    static refreshTime: number = 333;
+    prevTime: number = 0;
+    prevUpdate: number = 0;
+    animID: number = 0;
+
     startGame() {
         this.gs = new Game.GameState(false);
+        this.prevTime = Date.now();
+        this.prevUpdate = Date.now();
         setInterval(() => {
             this.gs.gameLoop();
-            this.draw();
-        }, 333);
+            this.prevUpdate = Date.now();
+        }, GameApp.refreshTime);
+        this.animID = (<any> window.requestAnimationFrame)(() => {this.animate(Date.now())});
+    }
+
+    animate(curTime) {
+        var delta = curTime - this.prevTime;
+        var frac = Math.min(1.0, (curTime-this.prevUpdate)/GameApp.refreshTime );
+        this.prevTime = curTime;
+        for (var id in this.gs.client.views) {
+            var view = this.gs.client.views[id];
+            view.updateFrame(delta, frac);
+        }
+        this.draw();
+        this.animID = (<any>window.requestAnimationFrame)(() => {this.animate(Date.now())});
     }
 
     draw() {
@@ -41,10 +61,10 @@ class GameApp {
                 context.fillRect(x, y, 1, 1);
             }
         context.fillStyle="green";
-        for (var i=0; i<this.gs.units.list.length; i++) {
-            var unit = this.gs.units.list[i];
-            if (unit) {
-                context.fillRect(unit.x + 0.2, unit.y + 0.2, 0.6, 0.6);
+        for (var id in this.gs.client.views) {
+            var view = this.gs.client.views[id];
+            if (view.type==Game.unit_char) {
+                context.fillRect(view.x + 0.2, view.y + 0.2, 0.6, 0.6);
             }
         }
         context.restore();
@@ -54,6 +74,7 @@ class GameApp {
 module Game {
 
     export var tile_floor = 1, tile_wall = 0, tile_unbreakable = 2;
+    export var unit_char = 1, unit_bomb = 2;
 
     export class State {
         beforeTick(): void {
@@ -76,9 +97,11 @@ module Game {
     }
 
     export class Unit extends State {
+        view: UnitView = null;
         id: number = 0;
         index: number = 0;
         test: number = 0;
+        type: number = 0;
         gs: GameState = null;
 
         x: number;
@@ -107,6 +130,11 @@ module Game {
         list: Unit[] = [];
         prevListSize: number = 0;
         counterId : number = 1;
+
+        createByUid(uid: number): Unit {
+            if (uid == unit_char) return new Character();
+            return null;
+        }
 
         add(unit: Unit): void {
             unit.id = this.counterId++;
@@ -232,6 +260,13 @@ module Game {
         }
 
         mainCharacter: Character = null;
+        views: UnitView[] = [];
+
+        createView(unit: Unit) {
+            if (unit.type == unit_char)
+                return new LinearView(unit);
+            return null;
+        }
 
         nowTick() {
             if (this.mainCharacter == null) {
@@ -242,6 +277,23 @@ module Game {
                 c.y = point.y;
                 this.gs.units.add(c);
             }
+        }
+
+        afterTick() {
+            var list = this.gs.units.list;
+            for (var i=0; i<list.length; i++)
+                if (list[i].view == null)
+                {
+                    var view = this.createView(list[i]);
+                    if (view!=null) {
+                        list[i].view = view;
+                        this.views[list[i].id] = view;
+                    }
+                }
+            for (var id in this.views)
+                if (!this.views[id].unit.inGame())
+                    delete this.views[id];
+                else this.views[id].updateTick();
         }
     }
 
@@ -257,6 +309,7 @@ module Game {
 
         constructor () {
             super();
+            this.type = unit_char;
         }
 
         nowTick(): void {
@@ -268,6 +321,47 @@ module Game {
                     this.y = y1;
                 }
             }
+        }
+    }
+
+
+    export class UnitView {
+        constructor(public unit: Unit) { this.type = unit.type; }
+        x: number = 0;
+        y: number = 0;
+        type: number = 0;
+
+        updateFrame(delta: number, frac: number) {
+
+        }
+
+        updateTick() {
+
+        }
+    }
+
+    export class LinearView extends UnitView {
+        prevX: number = 0;
+        prevY: number = 0;
+        tickX: number = 0;
+        tickY: number = 0;
+
+        constructor (unit: Unit) {
+            super(unit);
+            this.prevX = this.tickX = unit.x;
+            this.prevY = this.tickY = unit.y;
+        }
+
+        updateFrame(delta: number, frac: number) {
+            this.x = this.prevX + frac * (this.tickX - this.prevX);
+            this.y = this.prevY + frac * (this.tickY - this.prevY);
+        }
+
+        updateTick() {
+            this.prevX = this.tickX;
+            this.prevY = this.tickY;
+            this.tickX = this.unit.x;
+            this.tickY = this.unit.y;
         }
     }
 }

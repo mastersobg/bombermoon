@@ -3,6 +3,12 @@
 <script src="js/Game.js"></script>
 <script>
     $(function() {
+        (function() {
+            var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+            window.requestAnimationFrame = requestAnimationFrame;
+        })();
+
         app = new GameApp();
         app.startGame();
 
