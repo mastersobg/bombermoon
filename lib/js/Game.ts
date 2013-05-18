@@ -40,25 +40,28 @@ class GameApp {
         this.animID = (<any>window.requestAnimationFrame)(() => {this.animate(Date.now())});
     }
 
+    tileOf(x: number, y: number): number {
+        var tile = this.gs.map.get(x, y);
+        if (tile==Game.tile_unbreakable) return 1;
+        if (tile==Game.tile_floor) return 8;
+        return 3;
+    }
+
     draw() {
         var zoom = 32;
-        var borderW = 0, borderH = 0;
         var context = canvas.getContext("2d");
         context.save();
-        context.translate(borderW, borderH);
+        context.translate(zoom, zoom);
         context.scale(zoom, zoom);
         var w = this.gs.map.w, h = this.gs.map.h;
-        for (var x=0; x<w; x++)
-            for (var y=0; y<h; y++)
+        var tileImg = (<any>window).resources["tiles"];
+        var frameWidth = 16;
+        var tileRow = tileImg.width / frameWidth | 0;
+        for (var x=-1; x<=w; x++)
+            for (var y=-1; y<=h; y++)
             {
-                var tile = this.gs.map.get(x, y);
-                if (tile==Game.tile_floor)
-                    context.fillStyle = "white";
-                if (tile==Game.tile_wall)
-                    context.fillStyle = "gray";
-                if (tile==Game.tile_unbreakable)
-                    context.fillStyle = "black";
-                context.fillRect(x, y, 1, 1);
+                var tile = this.tileOf(x, y);
+                context.drawImage(tileImg, (tile % tileRow) * frameWidth, (tile / tileRow | 0) * frameWidth, frameWidth, frameWidth, x, y, 1, 1);
             }
         context.fillStyle="green";
         for (var id in this.gs.client.views) {

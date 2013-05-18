@@ -2,6 +2,31 @@
 <script src="js/lib/jquery-1.9.1.min.js"></script>
 <script src="js/Game.js"></script>
 <script>
+    function startup() {
+        app = new GameApp();
+        app.startGame();
+    }
+
+    var resLoaded = 0, resCount = 0;
+    window.resources = {}
+
+    function imgOnLoad(err) {
+        if (err)
+            console.log(err);
+        resLoaded++;
+        if (resLoaded == resCount) {
+            startup();
+        }
+    }
+
+    function tryLoadImage(name, src) {
+        resCount++;
+        var img = new Image();
+        img.onload = imgOnLoad;
+        img.src = src;
+        resources[name] = img;
+    }
+
     $(function() {
         (function() {
             var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
@@ -9,9 +34,7 @@
             window.requestAnimationFrame = requestAnimationFrame;
         })();
 
-        app = new GameApp();
-        app.startGame();
-
+        tryLoadImage("tiles", "img/tiles.png");
         var docOnKeyDown = function(e) {
             var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 32, 75, 17, 76, 13, 9, 80, 81, 73, 8 /* backspace */],
                     code = e.keyCode ? e.keyCode : e.which;
