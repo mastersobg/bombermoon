@@ -103,7 +103,7 @@ module Game {
 
 
 
-     this.list.pop();
+            this.list.pop();
             this.prevListSize = 0;
         }
     }
