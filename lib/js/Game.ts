@@ -91,6 +91,18 @@ class GameApp {
                     view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
                     anim.renderWidth, anim.renderHeight);
             }
+
+            if (view.type == Game.unit_bomb) {
+                var bomb = <Game.Bomb>view.unit;
+                var bombView = <Game.BombView>view;
+                var anim = this.getAnimation(bomb.team==1? "bomb1":"bomb2");
+                var frame = (bombView.step / anim.speed %anim.sizeX) | 0;
+                context.drawImage(atlas,
+                    anim.sx + frame * anim.frameWidth, anim.sy,
+                    anim.frameWidth, anim.frameHeight,
+                    view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight/2,
+                    anim.renderWidth, anim.renderHeight);
+            }
         }
         context.restore();
     }
@@ -98,10 +110,10 @@ class GameApp {
 
 class Tile {
 
-    constructor(private gs: Game.GameState, private per_row : number) {}
+    constructor(private gs: Game.GameState, private cols_per_row : number) {}
 
     get(row: number, col: number) {
-        return row * this.per_row + col;
+        return row * this.cols_per_row + col;
     }
 
     tileOf(x: number, y: number): number {
@@ -256,8 +268,8 @@ module Game {
         }
 
         remove(unit: Unit): void {
-            this.list[unit.index] = null
-            unit.leaveGameState()
+            this.list[unit.index] = null;
+            unit.leaveGameState();
         }
 
         nowTick(): void{
@@ -374,14 +386,17 @@ module Game {
         keysReset: bool = false;
         wasKeys: bool = false;
         go: number = 0;
+        setupBomb: bool = false;
 
         setKeys(side) {
             if (side==0) {
                 if (this.wasKeys)
                     this.keysReset = true;
                 else this.go = side;
-            }
-            else {
+            } else if (side == 5) {
+                this.setupBomb = true;
+                this.wasKeys = true;
+            } else {
                 this.go = side;
                 this.wasKeys = true;
             }
@@ -389,11 +404,14 @@ module Game {
 
         beforeTick() {
             var char = this.gs.client.mainCharacter;
-            if (char)
+            if (char) {
                 char.keys = this.go;
+                char.setupBomb = this.setupBomb;
+            }
             if (this.keysReset) {
                 this.go = 0;
                 this.keysReset = false;
+                this.setupBomb = false;
             }
             this.wasKeys = false;
         }
@@ -413,6 +431,8 @@ module Game {
         createView(unit: Unit) {
             if (unit.type == unit_char)
                 return new CharacterView(unit);
+            if (unit.type == unit_bomb)
+                return new BombView(unit);
             return null;
         }
 
@@ -464,6 +484,7 @@ module Game {
 
         team : number = 0;
         keys: number = 0;
+        setupBomb: bool = false;
 
         constructor () {
             super();
@@ -471,6 +492,9 @@ module Game {
         }
 
         nowTick(): void {
+            if (this.setupBomb) {
+                this.gs.units.add(new Bomb(this.x, this.y, this.team));
+            }
             if (this.keys!=0) {
                 var x1 = this.x + Character.dx[this.keys];
                 var y1 = this.y + Character.dy[this.keys];
@@ -479,6 +503,35 @@ module Game {
                     this.y = y1;
                 }
             }
+        }
+    }
+
+    export class Bomb extends Unit {
+
+        static DEFAULT_BOMB_TICKS = 5;
+
+        leftTicks: number;
+        team: number = 0;
+
+        constructor(x: number, y: number, team: number, ticks: number = Bomb.DEFAULT_BOMB_TICKS) {
+            super();
+            this.type = unit_bomb;
+            this.team = team;
+            this.leftTicks = ticks;
+            this.x = x;
+            this.y = y;
+        }
+
+        nowTick(): void {
+            --this.leftTicks;
+            if (this.leftTicks <= 0) {
+                this.explode();
+            }
+        }
+
+        explode(): void {
+//            alert("Boom!");
+            this.gs.units.remove(this)
         }
     }
 
@@ -545,6 +598,23 @@ module Game {
             this.go = keys != 0;
             if (this.go)
                 this.side = CharacterView.rows[keys];
+        }
+    }
+
+    export class BombView extends LinearView {
+        step: number = 0;
+
+        constructor (unit: Unit) {
+            super(unit);
+        }
+
+        updateFrame(delta: number, frac: number) {
+            super.updateFrame(delta, frac);
+            this.step += delta;
+        }
+
+        updateTick() {
+            super.updateTick();
         }
     }
 }

@@ -26,7 +26,9 @@
     addAnimations(defZoom, {
         tiles: {sx:0, sy:0, sizeX: 8, sizeY: 5},
         char1: {sy:5*defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100},
-        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 1, sizeY: 4, speed: 100}
+        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 1, sizeY: 4, speed: 100},
+        bomb1:  {sy:9*defZoom, sx:0, sizeX: 4, sizeY: 1, speed: 100},
+        bomb2:  {sy:9*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100}
     });
 
     function imgOnLoad(err) {
@@ -95,6 +97,11 @@
                 case 83:
                     keyDown(2);
                     break;
+                // setup bomb
+                case 75:
+                case 32:
+                    keyDown(5);
+                    break;
             }
 
             if (~__keys.indexOf(code)) {
@@ -122,6 +129,10 @@
                 case 40:
                 case 83:
                     keyUp(2);
+                    break;
+                case 75:
+                case 32:
+                    keyUp(5);
                     break;
             }
             if(~__keys.indexOf(code)){
