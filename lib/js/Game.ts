@@ -538,7 +538,6 @@ module Game {
         }
 
         explode(): void {
-//            alert("Boom!");
             this.gs.units.add(new Explosion(this.x, this.y, this.team));
             this.gs.units.remove(this);
         }
@@ -632,6 +631,7 @@ module Game {
             }
 
             for (var el in cells) {
+                this.cleanCell(cells[el].x, cells[el].y);
                 this.drawImage(context, atlas,
                     cells[el].sx, cells[el].sy,
                     anim.frameWidth, anim.frameHeight,
@@ -639,8 +639,11 @@ module Game {
                     anim.renderWidth, anim.renderHeight
                 );
             }
-}
+        }
 
+        cleanCell(x, y) {
+            this.gs.map.set(x, y, Game.tile_floor);
+        }
         drawImage(context, atlas, sx, sy, sw, sh, x, y, w, h): void {
             if (x >= 0 && x < this.gs.map.w && y >= 0 && y <= this.gs.map.h) {
                 context.drawImage(
