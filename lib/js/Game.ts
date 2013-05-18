@@ -40,13 +40,6 @@ class GameApp {
         this.animID = (<any>window.requestAnimationFrame)(() => {this.animate(Date.now())});
     }
 
-    tileOf(x: number, y: number): number {
-        var tile = this.gs.map.get(x, y);
-        if (tile==Game.tile_unbreakable) return 1;
-        if (tile==Game.tile_floor) return 8;
-        return 3;
-    }
-
     draw() {
         var zoom = 32;
         var context = canvas.getContext("2d");
@@ -55,12 +48,13 @@ class GameApp {
         context.scale(zoom, zoom);
         var w = this.gs.map.w, h = this.gs.map.h;
         var tileImg = (<any>window).resources["tiles"];
-        var frameWidth = 16;
+        var frameWidth = 32;
         var tileRow = tileImg.width / frameWidth | 0;
+        var tiles = new Tile(this.gs, 8);
         for (var x=-1; x<=w; x++)
             for (var y=-1; y<=h; y++)
             {
-                var tile = this.tileOf(x, y);
+                var tile = tiles.tileOf(x, y);
                 context.drawImage(tileImg, (tile % tileRow) * frameWidth, (tile / tileRow | 0) * frameWidth, frameWidth, frameWidth, x, y, 1, 1);
             }
         context.fillStyle="green";
@@ -74,9 +68,94 @@ class GameApp {
     }
 }
 
+class Tile {
+
+    constructor(private gs: Game.GameState, private per_row : number) {}
+
+    get(row: number, col: number) {
+        return row * this.per_row + col;
+    }
+
+    tileOf(x: number, y: number): number {
+        var tile = this.gs.map.get(x, y);
+        if (tile == Game.tile_road1) {
+
+        }
+        if (tile == Game.tile_road2) {
+
+        }
+        if (tile == Game.tile_unbreakable) {
+            if (x == -1 || x == this.gs.map.w || y == -1 || y == this.gs.map.h)
+                return this.tileOfBorder(x, y);
+            return this.get(0, 3);
+        }
+        if (tile == Game.tile_wall) {
+            return this.tileOfWall(x, y);
+        }
+        if (tile == Game.tile_entrance_free) {
+            return this.get(3, 2);
+        }
+        if (tile == Game.tile_exit_free) {
+            return this.get(4, 2);
+        }
+        if (tile == Game.tile_entrance1) {
+            return this.get(3, 1);
+        }
+        if (tile == Game.tile_exit1) {
+            return this.get(4, 1);
+        }
+        if (tile == Game.tile_entrance2) {
+            return this.get(3, 0);
+        }
+        if (tile == Game.tile_exit2) {
+            return this.get(4, 0);
+        }
+        return this.get(1, 1);
+    }
+
+    tileOfBorder(x: number, y: number): number {
+        if (x == -1) {
+            if (y == -1)
+                return this.get(0, 0);
+            else if (y == this.gs.map.h)
+                return this.get(1, 0);
+            else
+                return this.get(1, 0);
+        }
+        if (x == this.gs.map.w) {
+            if (y == -1)
+                return this.get(0, 2);
+            else if (y == this.gs.map.h)
+                return this.get(2, 2);
+            else
+                return this.get(1, 2);
+        }
+        if (y == -1)
+            return this.get(0, 1);
+        return this.get(2, 1);
+    }
+
+    tileOfWall(x: number, y: number): number {
+        var prev = this.gs.map.get(x, y - 1) == Game.tile_wall;
+        var next = this.gs.map.get(x, y + 1) == Game.tile_wall;
+        if (prev && next)
+            return this.get(1, 5);
+        if (prev)
+            return this.get(1, 4);
+        if (next)
+            return this.get(0, 4);
+        return this.get(0, 5);
+    }
+
+}
+
 module Game {
 
     export var tile_floor = 1, tile_wall = 0, tile_unbreakable = 2;
+    export var tile_road1 = 4, tile_road2 = 5;
+    export var tile_entrance_free = 4, tile_exit_free = 5, tile_entrance1 = 6, tile_exit1 = 7;
+    export var tile_entrance2 = 8, tile_exit2 = 9;
+
     export var unit_char = 1, unit_bomb = 2;
 
     export class State {
@@ -219,7 +298,7 @@ module Game {
 
         constructor (isServer: bool) {
             super();
-            this.map = new Map(this, 13, 9);
+            this.map = new Map(this, 15, 11);
             this.units = new Units(this);
             if (isServer)
                 this.server = new GameServer(this);
