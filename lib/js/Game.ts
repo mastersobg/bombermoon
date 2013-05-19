@@ -492,8 +492,12 @@ export class Map extends State {
         var cur = 0;
         while (cur < iters) {
             p2 = this.wrap(midW + this.rnd(midW), midH + this.rnd(midH-1));
-            var d = this.way(p1.x, p1.y, p2.x, p2.y);
-            if (d < Map.INF && d > 4) {
+            var d1 = this.way(p1.x, p1.y, p2.x, p2.y);
+            if (d1 < Map.INF && d1 > 4) {
+                break;
+            }
+            var d2 = this.way(p2.x, p2.y, p1.x, p1.y);
+            if (d2 < Map.INF && d2 > 4) {
                 break;
             }
             ++cur;
@@ -505,8 +509,9 @@ export class Map extends State {
             var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
             var prev = this.get(p.x, p.y);
             this.set(p.x, p.y, tile_unbreakable);
-            var d = this.way(p1.x, p1.y, p2.x, p2.y);
-            if (d == Map.INF) {
+            var d1 = this.way(p1.x, p1.y, p2.x, p2.y);
+            var d2 = this.way(p2.x, p2.y, p1.x, p1.y);
+            if (d1 == Map.INF || d2 == Map.INF) {
                 this.set(p.x, p.y, prev);
                 --closed;
             }
@@ -515,7 +520,7 @@ export class Map extends State {
         var walls = (this.w * this.h - closed) * 0.5 | 0;
         while (walls > 0) {
             var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
-            if (this.get(p.x, p.y) != tile_unbreakable)
+            if (this.get(p.x, p.y) == tile_floor)
                 this.set(p.x, p.y, tile_wall);
             --walls;
         }
@@ -549,7 +554,9 @@ export class Map extends State {
                 var ny = y + dy[i];
                 if (nx >= 0 && nx < this.w && ny >= 0 && ny < this.h && d[nx][ny] > d[x][y] + 1 && this.get(nx, ny) != tile_unbreakable) {
                     d[nx][ny] = d[x][y] + 1;
-                    queue.push(this.wrap(nx, ny));
+                    if (!(nx == x2 && ny == y2)) {
+                        queue.push(this.wrap(nx, ny));
+                    }
                 } 
             }    
         }
