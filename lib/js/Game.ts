@@ -852,9 +852,9 @@ export class GameServer extends State {
     generatePos(player) {
         var p;
         var iters = 50;
-        var w = this.gs.map.w / 2 | 0;;
+        var w = this.gs.map.w / 2 | 0;
         var h = this.gs.map.h / 2 | 0;
-        while (true) {
+        while (iters > 0) {
             p = this.gs.map.wrap(this.gs.map.rnd(w), this.gs.map.rnd(h));
             if (player == 2) {
                 p.x += w;
