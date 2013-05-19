@@ -371,6 +371,9 @@ export class Units extends State {
 }
 
 export class Map extends State {
+
+    static INF = 1 << 29;
+
     constructor(public gs: GameState, public w: number, public h: number) {
         super();
         gs.childs.push(this);
@@ -379,11 +382,92 @@ export class Map extends State {
     }
 
     generate(): void {
-        for (var x = 0; x < this.w; x++)
-            for (var y = 0; y < this.h; y++)
-                if (x % 2 == 1 && y % 2 == 1)
-                    this.set(x, y, tile_unbreakable);
-                else this.set(x, y, Math.random() * 2 | 0);
+        for (var x = 0; x < this.w; x++) {
+            for (var y = 0; y < this.h; y++) {
+                this.set(x, y, tile_floor);
+            }
+        }
+        var midW = this.w / 2 | 0;
+        var midH = this.h / 2 | 0;
+        var p1 = this.wrap(this.rnd(midW), this.rnd(midH));
+        var p2;
+        var iters = 100;
+        var cur = 0;
+        while(cur < iters) {
+            p2 = this.wrap(midW + this.rnd(midW), midH + this.rnd(midH));
+            var d = this.way(p1.x, p1.y, p2.x, p2.y);
+            if (d < Map.INF && d > 4) {
+                break;
+            }
+            ++cur;
+        }
+        this.set(p1.x, p1.y, tile_wall);
+        this.set(p2.x, p2.y, tile_wall);
+
+        var cnt = this.w * this.h * 0.4 | 0;
+        var closed = cnt;
+        while (cnt > 0) {
+            var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
+            var prev = this.get(p.x, p.y);
+            this.set(p.x, p.y, tile_unbreakable);
+            var d = this.way(p1.x, p1.y, p2.x, p2.y);
+            if (d == Map.INF) {
+                this.set(p.x, p.y, prev);
+                --closed;
+            }
+            --cnt;
+        }
+        var walls = (this.w * this.h - closed) * 0.5 | 0;
+        while (walls > 0) {
+            var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
+            if (this.get(p.x, p.y) != tile_unbreakable)
+                this.set(p.x, p.y, tile_wall);
+            --walls;
+        }
+
+    }
+    
+    way(x1, y1, x2, y2): number {
+        var queue = [];
+        queue.push(this.wrap(x1, y1));
+        var d = new Array(this.w);
+        for (var i = 0; i < this.w; ++i) {
+            d[i] = new Array(this.h);
+            for (var j = 0; j < this.h; ++j) 
+                d[i][j] = Map.INF;
+        }
+        d[x1][y1] = 0;
+        var dx = [0, 1, 0, -1];
+        var dy = [1, 0, -1, 0];
+        while (queue.length > 0) {
+            var el = queue.shift();
+            var x = el.x, y = el.y;
+            for (var i = 0; i < 4; ++i) {
+                var nx = x + dx[i];
+                var ny = y + dy[i];
+                if (nx >= 0 && nx < this.w && ny >= 0 && ny < this.h && d[nx][ny] > d[x][y] + 1 && this.get(nx, ny) != tile_unbreakable) {
+                    d[nx][ny] = d[x][y] + 1;
+                    queue.push(this.wrap(nx, ny));
+                } 
+            }    
+        }
+        for (var i = 0; i < this.w; ++i) {
+            for (var j = 0; j < this.h; ++j) {
+                if (this.get(i, j) != tile_unbreakable) {
+                    if (d[i][j] == Map.INF)
+                        return Map.INF;
+                }
+            }
+        }    
+        return d[x2][y2];
+    }
+    
+    wrap(x, y) {
+        return {x: x, y: y};
+    }
+
+    rnd(size): number {
+        return Math.floor((Math.random() * size));
     }
 
     beforeTick() {
