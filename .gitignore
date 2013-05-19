@@ -11,3 +11,4 @@ app.js
 *.sln
 bin
 obj
+*.swp

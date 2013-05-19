@@ -337,34 +337,53 @@ export class ExplosionView extends LinearView {
     }
 
     draw(anim, atlas, context): void {
-        var cells = (<Game.Explosion> this.unit).cells;
+        var explosion = <Game.Explosion> this.unit;
+        var cells = [];
+        cells.push({x: 0, y: 0, type: 0});
+        this.go(explosion.down, 0, 1, explosion.power, 1, 2, cells);
+        this.go(explosion.up, 0, -1, explosion.power, 1, -1, cells);
+        this.go(explosion.left, -1, 0, explosion.power, 3, 5, cells);
+        this.go(explosion.right, 1, 0, explosion.power, 3, 4, cells);
         var frame = (this.step / anim.speed % anim.sizeX) | 0;
         var dx = this.x + 0.5 - anim.renderWidth / 2;
         var dy = this.y + 0.5 - anim.renderHeight / 2;
 
         for (var el in cells) {
             var x = cells[el].x + dx;
-            var y = cells[el].y + dx;
+            var y = cells[el].y + dy;
             var type = cells[el].type;
             this.drawImage(
-            context, atlas,
-            anim.sx + frame * anim.frameWidth,
-            anim.sy + type * anim.frameHeight,
-            anim.frameWidht, anim.frameHeight,
-            x, y,
-            anim.renderWidth, anim.renderHeight
+                context, atlas,
+                anim.sx + frame * anim.frameWidth,
+                anim.sy + type * anim.frameHeight,
+                anim.frameWidth, anim.frameHeight,
+                x, y,
+                anim.renderWidth, anim.renderHeight
             );
 
+        }
+
+    }
+
+    go(steps, dx, dy, power, type1, type2, cells): void {
+        for (var i = 1; i <= steps; ++i) {
+            var x = i * dx;
+            var y = i * dy;
+            if (i == power) {
+                cells.push({x: x, y: y, type: type2});
+            } else {
+                cells.push({x: x, y: y, type: type1});
+            }
         }
     }
 
     drawImage(context, atlas, sx, sy, sw, sh, x, y, w, h): void {
         context.drawImage(
-        atlas,
-        sx, sy,
-        sw, sh,
-        x, y,
-        w, h
+            atlas,
+            sx, sy,
+            sw, sh,
+            x, y,
+            w, h
         );
     }
 }
