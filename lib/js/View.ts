@@ -75,6 +75,9 @@ export class GameApp {
         }
     }
 
+    onGameStart() {
+    }
+
     receiveMsg(buf: Game.Buffer) {
         buf.mode = Game.Buffer.MODE_READ;
         var type = buf.pop();
@@ -96,6 +99,7 @@ export class GameApp {
                     this.gsTest.server.observers[0].decode(buf);
                 }
 
+            this.onGameStart();
             this.startGame();
         } else if (type == Game.CODE_DIFF) {
             var gid = buf.pop();

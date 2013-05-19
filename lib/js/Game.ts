@@ -557,21 +557,6 @@ export class GameServer extends State {
             this.orders[i].execute(this.gs);
         }
         this.gs.unixTime = Date.now() / 1000 | 0;
-        if (this.gs.units.list.length == 0) {
-            var c = new Character();
-            c.player = 1;
-            c.team = 1;
-            var point = this.gs.map.findFreePlace();
-            c.x = point.x;
-            c.y = point.y;
-            this.gs.units.add(c);
-            c = new Character();
-            c.player = 3;
-            c.team = 2;
-            c.x = this.gs.map.w - point.x;
-            c.y = this.gs.map.h - point.y;
-            this.gs.units.add(c);
-        }
 
         var j = 0;
         var left = [];
@@ -596,6 +581,27 @@ export class GameServer extends State {
             for (var i = 0; i < this.observers.length; i++) {
                 var obs = this.observers[i];
                 this.tryAssignPlayerId(obs);
+            }
+        }
+        this.doRespawn();
+    }
+
+    doRespawn() {
+        for (var i = 0; i < this.observers.length; i++) {
+            var obs = this.observers[i];
+            if (!obs.playerId) continue;
+            var char = this.gs.units.characterByPlayerId[obs.playerId];
+            if (!char) {
+                var c = new Character();
+                c.player = obs.playerId;
+                c.team = 1;
+                switch (c.player) {
+                    case 1: c.x = 0; c.y = 0;
+                    case 2: c.x = this.gs.map.w-1; c.y = 0;
+                    case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1;
+                    case 4: c.x = 0; c.y = this.gs.map.h - 1;
+                }
+                this.gs.units.add(c);
             }
         }
     }
@@ -646,11 +652,14 @@ export class GameServer extends State {
         this.tryAssignPlayerId(obs);
     }
 
+    static joinOrder = [0, 1, 3, 2, 4];
+
     tryAssignPlayerId(obs: Observer) {
         if (obs.playerId != 0 || obs.wantToBeObs) {
             return;
         }
-        for (var i = 1; i <= 4; i++) {
+        for (var j = 1; j <= 4; j++) {
+            var i = GameServer.joinOrder[j];
             if (this.obsById[i] == null) {
                 obs.playerId = i;
                 obs.gameUid = 0;

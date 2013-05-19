@@ -1,10 +1,19 @@
 <html>
 <script src="js/lib/jquery-1.9.1.min.js"></script>
+<script src="js/lib/socket.io.js"></script>
 <script src="js/lib/require.js"></script>
 <script>
     function startup() {
         app = new View.GameApp();
-        app.startTestServer();
+        var socket = io.connect('http://' + window.location.hostname + ":3010");
+        socket.on('game', function (data) {
+            app.receiveMsg(new Game.ArrBuffer(data));
+        })
+        app.onGameStart = function () {
+            app.gs.client.sendIt = function(buf) {
+                socket.emit("orders", buf.source);
+            }
+        }
     }
 
     function addAnimations(zoom, anims) {
