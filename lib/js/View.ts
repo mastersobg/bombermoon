@@ -79,6 +79,13 @@ export class GameApp {
         }
     }
 
+    stopGame() {
+        if (this.keyID > 0)
+            window.clearInterval(this.keyID);
+        if (this.animID > 0)
+            window.cancelAnimationFrame(this.animID);
+    }
+
     onGameStart() {
     }
 

@@ -35,7 +35,6 @@ class Room {
         var inBuffer = this.inBuffer;
         var gs = this.gs;
         var observer = new Game.Observer();
-        console.log("connection");
         observer.sessionInSocket++;
         gs.server.addObserver(observer);
         socket.on('orders', function (bufArr) {

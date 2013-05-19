@@ -1,4 +1,6 @@
 <html>
+<head>
+<meta name="viewport" content="user-scalable=yes, width=device-width, initial-scale=1.0" />
 <script src="js/lib/jquery-1.9.1.min.js"></script>
 <script src="js/lib/socket.io.js"></script>
 <script src="js/lib/require.js"></script>
@@ -10,7 +12,11 @@
         var socket = io.connect('http://' + window.location.hostname + ":3010");
         socket.on('game', function (data) {
             app.receiveMsg(new Game.ArrBuffer(data));
-        })
+        }).on('disconnect', function (data) {
+            app.stopGame();
+            app = null;
+            startup();
+        });
         app.onGameStart = function () {
             app.gs.client.sendIt = function (buf) {
                 if (!socket.disconnected)
@@ -24,25 +30,25 @@
         app.startTestServer();
     }
     var canvas;
- 
-    window.drawSplash = function() {
+
+    window.drawSplash = function () {
         var w = canvas.width, h = canvas.height;
         var context = canvas.getContext("2d");
         context.fillStyle = "black";
         context.fillRect(0, 0, w, h);
 
-		var moon_nano = resources["bm-moon_nano"];
-		var moon_mini = resources["bm-moon_mini"];
-		var moon = resources["bm-moon"];
-		var robo = resources["bm-robo-splash"];
-		var bug = resources["bm-bug-splash"];
-		var splash_logo = resources["bm-logo-splash"];
+        var moon_nano = resources["bm-moon_nano"];
+        var moon_mini = resources["bm-moon_mini"];
+        var moon = resources["bm-moon"];
+        var robo = resources["bm-robo-splash"];
+        var bug = resources["bm-bug-splash"];
+        var splash_logo = resources["bm-logo-splash"];
 
-		context.drawImage(moon_nano, (w / 2) - (moon_nano.width / 2), (h / 4) - (moon_nano.height / 2));
-		context.drawImage(moon_mini, (w / 2) - (moon_mini.width / 2), (h / 2) - (moon_mini.height / 2));
-		context.drawImage(moon, (w / 2) - (moon.width / 2), h - moon.height);
-		context.drawImage(robo, 0, h - robo.height);
-		context.drawImage(bug, w - bug.width, h - bug.height);
+        context.drawImage(moon_nano, (w / 2) - (moon_nano.width / 2), (h / 4) - (moon_nano.height / 2));
+        context.drawImage(moon_mini, (w / 2) - (moon_mini.width / 2), (h / 2) - (moon_mini.height / 2));
+        context.drawImage(moon, (w / 2) - (moon.width / 2), h - moon.height);
+        context.drawImage(robo, 0, h - robo.height);
+        context.drawImage(bug, w - bug.width, h - bug.height);
         context.drawImage(splash_logo, (w / 2) - (splash_logo.width / 2), h / 8);
     }
 
@@ -74,16 +80,16 @@
 
     var defZoom = 32;
     addAnimations(defZoom, {
-        tiles: {sx:0, sy:0, sizeX: 11, sizeY: 5},
-        char1: {sy:5*defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100},
-        char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 4, speed: 100},
-        bomb1: {sy:10*defZoom, sx:0, sizeX: 4, sizeY: 1, speed: 100},
-        bomb2: {sy:10*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100},
-        expl1: {sy:12*defZoom, sx: 0, sizeX: 4, sizeY: 1, speed: 100},
-        expl2: {sy:12 * defZoom, sx: 4 * defZoom, sizeX: 4, sizeY: 1, speed: 100 },
+        tiles: { sx: 0, sy: 0, sizeX: 11, sizeY: 5 },
+        char1: { sy: 5 * defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100 },
+        char2: { sy: 5 * defZoom, sx: 4 * defZoom, sizeX: 4, sizeY: 4, speed: 100 },
+        bomb1: { sy: 10 * defZoom, sx: 0, sizeX: 4, sizeY: 1, speed: 100 },
+        bomb2: { sy: 10 * defZoom, sx: 4 * defZoom, sizeX: 4, sizeY: 1, speed: 100 },
+        expl1: { sy: 12 * defZoom, sx: 0, sizeX: 4, sizeY: 1, speed: 100 },
+        expl2: { sy: 12 * defZoom, sx: 4 * defZoom, sizeX: 4, sizeY: 1, speed: 100 },
         arrow: { sy: 18 * defZoom, sx: 0, sizeX: 1, sizeY: 1 },
         bombCoolDown: { sy: 18 * defZoom, sx: 4 * defZoom, sizeX: 5, sizeY: 1 },
-        respawnCoolDown: {sy: 18 *defZoom, sx: defZoom, sizeX: 1, sizeY: 1, frameWidth:defZoom*3, frameHeight: defZoom}
+        respawnCoolDown: { sy: 18 * defZoom, sx: defZoom, sizeX: 1, sizeY: 1, frameWidth: defZoom * 3, frameHeight: defZoom }
     });
 
     function onLoad(err) {
@@ -104,11 +110,14 @@
     function drawSplash() {
     }
 
-    $(function() {
-        (function() {
+    $(function () {
+        (function () {
             var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                     window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
             window.requestAnimationFrame = requestAnimationFrame;
+            var cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
+                    window.webkitCancelAnimationFrame || window.msCancelAnimationFrame;
+            window.cancelAnimationFrame = cancelAnimationFrame;
         })();
 
         tryLoadImage("tiles", "img/tiles.png");
@@ -129,7 +138,7 @@
         var keyMask = 0;
         function keyDown(key) {
             if (!app) return;
-            var mask = (1<<key);
+            var mask = (1 << key);
             if ((keyMask & mask) == 0) {
                 keyMask ^= mask;
                 app.setKeys(key);
@@ -137,17 +146,17 @@
         }
         function keyUp(key) {
             if (!app) return;
-            var mask = (1<<key);
+            var mask = (1 << key);
             if ((keyMask & mask) != 0) {
                 keyMask ^= mask;
-                for (var i=1; i<=4; i++)
-                    if ((keyMask & (1<<i))!=0)
+                for (var i = 1; i <= 4; i++)
+                    if ((keyMask & (1 << i)) != 0)
                         return app.setKeys(i);
                 app.setKeys(0);
             }
         }
 
-        var docOnKeyDown = function(e) {
+        var docOnKeyDown = function (e) {
             var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 32, 75, 17, 76, 13, 9, 80, 81, 73, 8 /* backspace */],
                     code = e.keyCode ? e.keyCode : e.which;
             switch (code) {
@@ -179,7 +188,7 @@
             }
         }
 
-        var docOnKeyUp = function(e) {
+        var docOnKeyUp = function (e) {
             var __keys = [39, 68, 38, 87, 37, 65, 40, 83, 81, 8 /* backspace */],
                     code = e.keyCode ? e.keyCode : e.which;
             switch (code) {
@@ -200,7 +209,7 @@
                     keyUp(2);
                     break;
             }
-            if(~__keys.indexOf(code)){
+            if (~__keys.indexOf(code)) {
                 e.stopPropagation();
                 e.preventDefault();
             }
@@ -212,6 +221,7 @@
     });
 
 </script>
+</head>
 <body>
 <canvas id="canvas0" width="480" height="352"></canvas>
 </body>
