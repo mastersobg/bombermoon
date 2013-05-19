@@ -239,6 +239,10 @@ export class GameApp {
         }
         context.restore();
         if (this.gs.win != 0) {
+            context.globalAlpha = 0.3;
+            context.fillStyle = "black";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.globalAlpha = 1.0;
             var s = "";
             if (this.gs.win == 1)
                 s = "BUGS WIN";
