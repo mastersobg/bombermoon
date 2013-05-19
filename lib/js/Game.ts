@@ -775,22 +775,26 @@ export class GameServer extends State {
         this.doRespawn();
     }
 
+    respawnCoolDown = [0, 0, 0, 0, 0];
+
     doRespawn() {
         for (var i = 0; i < this.observers.length; i++) {
             var obs = this.observers[i];
             if (!obs.playerId) continue;
             var char = this.gs.units.characterByPlayerId[obs.playerId];
             if (!char) {
-                var c = new Character();
-                c.player = obs.playerId;
-                c.team = 1;
-                switch (c.player) {
-                    case 1: c.x = 0; c.y = 0; break;
-                    case 2: c.x = 0; c.y = this.gs.map.h - 1; break;
-                    case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1; break;
-                    case 4: c.x = this.gs.map.w - 1; c.y = 0; break;
-                }
-                this.gs.units.add(c);
+                if (this.respawnCoolDown[obs.playerId] == 0) {
+                    var c = new Character();
+                    c.player = obs.playerId;
+                    c.team = 1;
+                    switch (c.player) {
+                        case 1: c.x = 0; c.y = 0; break;
+                        case 2: c.x = 0; c.y = this.gs.map.h - 1; break;
+                        case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1; break;
+                        case 4: c.x = this.gs.map.w - 1; c.y = 0; break;
+                    }
+                    this.gs.units.add(c);
+                } else this.respawnCoolDown[obs.playerId]--;
             }
         }
     }
@@ -821,12 +825,13 @@ export class GameServer extends State {
                 outBuf.push(obs.gameUid);
                 outBuf.push(obs.playerId);
                 outBuf.push(this.gs.tick);
-                outBuf.push(this.gs.unixTime);
+               // outBuf.push(this.gs.unixTime);
                 this.gs.encodeBoot(outBuf);
             } else {
                 outBuf.push(CODE_DIFF);
                 outBuf.push(obs.gameUid);
-                outBuf.push(this.gs.unixTime);
+                outBuf.push(this.respawnCoolDown[obs.playerId]);
+               // outBuf.push(this.gs.unixTime);
                 this.gs.encode(outBuf);
             }
             if (obs.sendBuf(outBuf))
@@ -975,6 +980,7 @@ export class GameClient extends State {
         this.key = new KeyController(gs);
     }
 
+    respawnCoolDown = 0;
     key: KeyController;
     mainCharacter: Character = null;
     views: UnitView[] = [];
@@ -988,7 +994,7 @@ export class GameClient extends State {
     decodeBoot(buf: Buffer) {
         this.gs.uid = buf.pop();
         this.playerId = buf.pop();
-        this.gs.unixTime = buf.pop();
+       // this.gs.unixTime = buf.pop();
         this.gs.tick = buf.pop();
     }
 
@@ -997,6 +1003,7 @@ export class GameClient extends State {
 
     nowTick() {
         var list = this.gs.units.list;
+        this.mainCharacter = null;
         for (var i = 0; i < list.length; i++)
             if (list[i] && list[i].type == unit_char && list[i].player == this.playerId)
                 this.mainCharacter = <Character>list[i];
@@ -1052,10 +1059,14 @@ export class Character extends Unit {
     static dx = [0, 1, 0, -1, 0];
     static dy = [0, 0, 1, 0, -1];
     static BOMB_COOLDOWN = 12;
+    static RESPAWN_COOLDOWN = 12;
+    static HP_DEF = 3;
+    static HP_START = 9;
 
     team: number = 0;
     keys: number = 0;
     bombsCount: number = 2;
+    hp: number = Character.HP_START;
     bombCoolDown = [0, 0];
     setupBomb: bool = false;
 
@@ -1092,13 +1103,35 @@ export class Character extends Unit {
         this.modified |= Unit.BIT_COOLDOWN;
     }
 
+    isAlive(): bool {
+        return this.hp >= Character.HP_DEF;
+    }
+
     nowTick(): void {
         this.team = this.player <= 2 ? 1 : 2;
+        if (this.hp == 0) {
+            if (this.gs.server) {
+                this.gs.server.respawnCoolDown[this.player] = Character.RESPAWN_COOLDOWN;
+                this.leaveGameState();
+            }
+            return;
+        } else
+        if (this.hp != Character.HP_DEF) {
+            this.hp--;
+        }
+        else {
+            if (this.gs.server) {
+                if (!this.gs.map.isGood(this.x, this.y, this.team)) {
+                    this.hp--;
+                    this.modified |= Unit.BIT_COOLDOWN;
+                }
+            }
+        }
         if (this.bombCoolDown[0] > 0)
             this.bombCoolDown[0]--;
         if (this.bombCoolDown[1] > 0)
             this.bombCoolDown[1]--;
-        if (!this.gs.server) return;
+        if (!this.gs.server || !this.isAlive()) return;
         if (this.keys != 0) {
             var x1 = this.x + Character.dx[this.keys];
             var y1 = this.y + Character.dy[this.keys];
@@ -1117,6 +1150,7 @@ export class Character extends Unit {
         if ((modified & Unit.BIT_COOLDOWN) != 0) {
             this.bombCoolDown[0] = buf.pop();
             this.bombCoolDown[1] = buf.pop();
+            this.hp = buf.pop();
         }
     }
 
@@ -1127,6 +1161,7 @@ export class Character extends Unit {
         if ((modified & Unit.BIT_COOLDOWN) != 0) {
             buf.push(this.bombCoolDown[0]);
             buf.push(this.bombCoolDown[1]);
+            buf.push(this.hp);
         }
     }
 }

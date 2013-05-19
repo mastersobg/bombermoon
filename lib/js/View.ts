@@ -108,7 +108,9 @@ export class GameApp {
         } else if (type == Game.CODE_DIFF) {
             var gid = buf.pop();
             if (gid == this.gs.uid) {
-                this.gs.unixTime = buf.pop();
+                //this.gs.unixTime = buf.pop();
+                //TODO: make it in personal State
+                this.gs.client.respawnCoolDown = buf.pop();
                 this.gs.inputBuf = buf;
                 this.gs.gameLoop();
                 this.prevUpdate = Date.now();
@@ -124,11 +126,11 @@ export class GameApp {
             var view = this.gs.client.views[id];
             view.updateFrame(delta, frac);
         }
-        this.draw();
+        this.draw(frac);
         this.animID = (<any>window.requestAnimationFrame)(() => { this.animate(Date.now()) });
     }
 
-    draw() {
+    draw(frac: number) {
         var zoom = 32;
         var context = canvas.getContext("2d");
         var atlas = this.getResource("tiles");
@@ -150,8 +152,16 @@ export class GameApp {
                 var charView = <CharacterView>view;
                 var anim = this.getAnimation(char.team == 1 ? "char1" : "char2");
                 var frame = (charView.step / anim.speed % anim.sizeX) | 0;
+                var side = charView.side;
+                if (!char.isAlive()) {
+                    frame = (charView.death / anim.speed) | 0;
+                    side = 4;
+                    if (frame >= anim.sizeX)
+                        frame = anim.sizeX - 1;
+                } else if ((char.hp + Game.Character.HP_DEF) % 2)
+                    continue;
                 context.drawImage(atlas,
-                    anim.sx + frame * anim.frameWidth, anim.sy + charView.side * anim.frameHeight,
+                    anim.sx + frame * anim.frameWidth, anim.sy + side * anim.frameHeight,
                     anim.frameWidth, anim.frameHeight,
                     view.x + 0.5 - anim.renderWidth / 2, view.y + 0.5 - anim.renderHeight / 2,
                     anim.renderWidth, anim.renderHeight);
@@ -206,6 +216,17 @@ export class GameApp {
                         anim.frameWidth, anim.frameHeight,
                         p.x, p.y - 1,
                         anim.renderWidth, anim.renderHeight);
+                if (this.gs.client.respawnCoolDown > 0) {
+                    anim = this.getAnimation("respawnCoolDown");
+                    var delta = (this.gs.client.respawnCoolDown - frac) / Game.Character.RESPAWN_COOLDOWN;
+                    context.drawImage(atlas,
+                        anim.sx, anim.sy,
+                        anim.frameWidth, anim.frameHeight,
+                        w-4, -1,
+                        anim.renderWidth, anim.renderHeight);
+                    context.fillStyle = "red";
+                    context.fillRect(w-4 +  4 / zoom, -1 + 14 / zoom, delta * 88 / zoom, 4 / zoom);
+                }
             }            
         }
         context.restore();
@@ -345,6 +366,7 @@ export class LinearView extends Game.UnitView {
 export class CharacterView extends LinearView {
     static rows = [0, 2, 0, 3, 1];
     step: number = 0;
+    death: number = 0;
     side: number = CharacterView.rows[0];
     constructor(unit: Game.Unit) {
         super(unit);
@@ -353,9 +375,13 @@ export class CharacterView extends LinearView {
 
     updateFrame(delta: number, frac: number) {
         super.updateFrame(delta, frac);
-        if (this.go)
-            this.step += delta;
-        else this.step = 0;
+        if (!(<Game.Character>this.unit).isAlive()) {
+            this.death += delta;
+        } else {
+            if (this.go)
+                this.step += delta;
+            else this.step = 0;
+        }
     }
 
     updateTick() {
