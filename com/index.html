@@ -3,7 +3,9 @@
 <script src="js/lib/socket.io.js"></script>
 <script src="js/lib/require.js"></script>
 <script>
-    function startup() {
+    var app = null;
+
+    function doConnect() {
         app = new View.GameApp();
         var socket = io.connect('http://' + window.location.hostname + ":3010");
         socket.on('game', function (data) {
@@ -15,8 +17,31 @@
                     socket.emit("orders", buf.source);
             }
         }
-    
-        //app.startTestServer();
+    }
+
+    function doTest() {
+        app = new View.GameApp();
+        app.startTestServer();
+    }
+    var canvas;
+ 
+    window.drawSplash = function() {
+        var w = canvas.width, h = canvas.height;
+        var context = canvas.getContext("2d");
+        context.fillStyle = "black";
+        context.fillRect(0, 0, w, h);
+        context.drawImage(resources["bm-logo-splash"], 0, 0);
+    }
+
+    function startup() {
+        canvas = document.getElementById("canvas0");
+        var splashInterval = window.setInterval(function () { drawSplash(); }, 100);
+        var clicker = function () {
+            canvas.removeEventListener("click", clicker);
+            clearInterval(splashInterval);
+            doConnect();
+        }
+        canvas.addEventListener("click", clicker);
     }
 
     function addAnimations(zoom, anims) {
@@ -49,8 +74,6 @@
     });
 
     function onLoad(err) {
-        if (err)
-            console.log(err);
         resLoaded++;
         if (resLoaded == resCount) {
             startup();
@@ -65,6 +88,9 @@
         resources[name] = img;
     }
 
+    function drawSplash() {
+    }
+
     $(function() {
         (function() {
             var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
@@ -73,6 +99,13 @@
         })();
 
         tryLoadImage("tiles", "img/tiles.png");
+        tryLoadImage("bm-logo-splash", "img/splash/bm-logo-splash.png");
+        tryLoadImage("bm-arrow", "img/splash/bm-arrow.png");
+        tryLoadImage("bm-bug-splash", "img/splash/bm-bug-splash.png");
+        tryLoadImage("bm-robo-splash", "img/splash/bm-robo-splash.png");
+        tryLoadImage("bm-moon_nano", "img/splash/bm-moon_nano.png");
+        tryLoadImage("bm-moon_mini", "img/splash/bm-moon_mini.png");
+        tryLoadImage("bm-moon", "img/splash/bm-moon.png");
         resCount++;
         require(["js/Game", "js/View"], function (Game, View) {
             window.Game = Game;
@@ -167,6 +200,6 @@
 
 </script>
 <body>
-<canvas id="canvas0" width="640" height="480"></canvas>
+<canvas id="canvas0" width="480" height="352"></canvas>
 </body>
 </html>
