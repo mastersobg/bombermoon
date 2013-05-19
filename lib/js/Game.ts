@@ -661,6 +661,7 @@ export class GameServer extends State {
             var i = GameServer.joinOrder[j];
             if (this.obsById[i] == null) {
                 obs.playerId = i;
+                this.obsById[i] = obs;
                 obs.gameUid = 0;
                 return;
             }
