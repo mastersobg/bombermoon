@@ -949,64 +949,58 @@ export class Bomb extends Unit {
     }
 
     cellsToExplode(power) {
-        var cells = [];
-        this.processCell(this.x, this.y, 0, cells);
+        this.processCell(this.x, this.y);
         // up
+        var up = 0, down = 0, right = 0, left = 0;
         for (var i = 1; i <= power; ++i) {
             var x = this.x, y = this.y - i;
-            var type = i == power ? 2 : 0;
-            if (this.processCell(x, y, type, cells)) {
+            var ret = this.processCell(x, y);
+            up += ret.add;
+            if (ret.ret) {
                 break;
-
             }
-
         }
         // down
         for (var i = 1; i <= power; ++i) {
             var x = this.x, y = this.y + i;
-            var type = i == power ? 3 : 0;
-            if (this.processCell(x, y, type, cells)) {
+            var ret = this.processCell(x, y);
+            down += ret.add;
+            if (ret.ret) {
                 break;
-
             }
-
         }
         // left
         for (var i = 1; i <= power; ++i) {
             var x = this.x - i, y = this.y;
-            var type = i == power ? 4 : 1;
-            if (this.processCell(x, y, type, cells)) {
+            var ret = this.processCell(x, y);
+            left += ret.add;
+            if (ret.ret) {
                 break;
-
             }
-
         }
         // right
         for (var i = 1; i <= power; ++i) {
             var x = this.x + i, y = this.y;
-            var type = i == power ? 5 : 1;
-            if (this.processCell(x, y, type, cells)) {
+            var ret = this.processCell(x, y);
+            right += ret.add;
+            if (ret.ret) {
                 break;
-
             }
-
         }
-        return cells;
+        return {up: up, down: down, left: left, right: right};
 
     }
 
-    processCell(x, y, type, cells): bool {
+    processCell(x, y) {
         var cellType = this.gs.map.get(x, y);
         if (cellType == tile_unbreakable) {
-            return true;
-
+            return {ret: true, add: 0};
         }
-        cells.push({ x: x, y: y, type: type });
         this.gs.map.set(x, y, tile_floor);
         if (cellType == tile_wall) {
-            return true;
+            return {ret: true, add: 1};
         }
-        return false;
+        return {ret: false, add: 1};
     }
 
 
@@ -1030,16 +1024,22 @@ export class Explosion extends Unit {
     team: number;
     power: number = 3;
     remove: bool = false;
-    cells = [];
+    up: number;
+    down: number;
+    right: number;
+    left: number;
 
-    constructor(x: number = 0, y: number = 0, team: number = 0, cells = [], power = 0) {
+    constructor(x: number = 0, y: number = 0, team: number = 0, cells = {up: 0, down: 0, right: 0, left: 0}, power = 0) {
         super();
         this.type = unit_explosion;
         this.x = x;
         this.y = y;
         this.team = team;
-        this.cells = cells;
         this.power = power;
+        this.up = cells.up;
+        this.down = cells.down;
+        this.right = cells.right;
+        this.left = cells.left;
     }
 
     nowTick(): void {
@@ -1055,6 +1055,10 @@ export class Explosion extends Unit {
         if ((modified & Unit.BIT_CONSTANT) != 0) {
             this.team = buf.pop();
             this.power = buf.pop();
+            this.up = buf.pop();
+            this.down = buf.pop();
+            this.left = buf.pop();
+            this.right = buf.pop();
         }
     }
 
@@ -1063,6 +1067,10 @@ export class Explosion extends Unit {
         if ((modified & Unit.BIT_CONSTANT) != 0) {
             buf.push(this.team);
             buf.push(this.power);
+            buf.push(this.up);
+            buf.push(this.down);
+            buf.push(this.left);
+            buf.push(this.right);
         }
     }
 }
