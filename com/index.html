@@ -30,7 +30,20 @@
         var context = canvas.getContext("2d");
         context.fillStyle = "black";
         context.fillRect(0, 0, w, h);
-        context.drawImage(resources["bm-logo-splash"], 0, 0);
+
+		var moon_nano = resources["bm-moon_nano"];
+		var moon_mini = resources["bm-moon_mini"];
+		var moon = resources["bm-moon"];
+		var robo = resources["bm-robo-splash"];
+		var bug = resources["bm-bug-splash"];
+		var splash_logo = resources["bm-logo-splash"];
+
+		context.drawImage(moon_nano, (w / 2) - (moon_nano.width / 2), (h / 4) - (moon_nano.height / 2));
+		context.drawImage(moon_mini, (w / 2) - (moon_mini.width / 2), (h / 2) - (moon_mini.height / 2));
+		context.drawImage(moon, (w / 2) - (moon.width / 2), h - moon.height);
+		context.drawImage(robo, 0, h - robo.height);
+		context.drawImage(bug, w - bug.width, h - bug.height);
+        context.drawImage(splash_logo, (w / 2) - (splash_logo.width / 2), h / 8);
     }
 
     function startup() {
