@@ -1,7 +1,7 @@
-export var tile_floor = 1, tile_wall = 0, tile_unbreakable = 2;
+export var tile_floor = 2, tile_wall = 1, tile_unbreakable = 3;
 export var tile_road1 = 4, tile_road2 = 5;
-export var tile_entrance_free = 4, tile_exit_free = 5, tile_entrance1 = 6, tile_exit1 = 7;
-export var tile_entrance2 = 8, tile_exit2 = 9;
+export var tile_entrance_free = 6, tile_exit_free = 7, tile_entrance1 = 8, tile_exit1 = 9;
+export var tile_entrance2 = 10, tile_exit2 = 11;
 export var ORDER_TICK = 1, ORDER_KEY = 2, ORDER_BOMB = 3;
 
 export var unit_char = 1, unit_bomb = 2, unit_explosion = 3;
@@ -889,7 +889,7 @@ export class Character extends Unit {
         if (this.keys != 0) {
             var x1 = this.x + Character.dx[this.keys];
             var y1 = this.y + Character.dy[this.keys];
-            if (this.gs.map.get(x1, y1) != tile_unbreakable) {
+            if (this.gs.map.get(x1, y1) == this.team) {
                 this.x = x1;
                 this.y = y1;
                 this.modified |= Unit.BIT_POS;
@@ -984,11 +984,13 @@ export class Bomb extends Unit {
 
     processCell(x, y) {
         var cellType = this.gs.map.get(x, y);
+        var wall = this.team == 2 ? tile_wall : tile_floor;
+        var free = this.team == 2 ? tile_floor : tile_wall;
         if (cellType == tile_unbreakable) {
             return {ret: true, add: 0};
         }
-        this.gs.map.set(x, y, tile_floor);
-        if (cellType == tile_wall) {
+        this.gs.map.set(x, y, free);
+        if (cellType == wall) {
             return {ret: true, add: 1};
         }
         return {ret: false, add: 1};
