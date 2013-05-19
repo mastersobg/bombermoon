@@ -492,11 +492,11 @@ export class Map extends State {
         var cur = 0;
         while (cur < iters) {
             p2 = this.wrap(midW + this.rnd(midW), midH + this.rnd(midH-1));
-            var d1 = this.way(p1.x, p1.y, p2.x, p2.y);
+            var d1 = this.way(p1.x, p1.y, p2.x, p2.y, [p1, p2]);
             if (d1 < Map.INF && d1 > 4) {
                 break;
             }
-            var d2 = this.way(p2.x, p2.y, p1.x, p1.y);
+            var d2 = this.way(p2.x, p2.y, p1.x, p1.y, [p1, p2]);
             if (d2 < Map.INF && d2 > 4) {
                 break;
             }
@@ -509,9 +509,11 @@ export class Map extends State {
             var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
             var prev = this.get(p.x, p.y);
             this.set(p.x, p.y, tile_unbreakable);
-            var d1 = this.way(p1.x, p1.y, p2.x, p2.y);
-            var d2 = this.way(p2.x, p2.y, p1.x, p1.y);
-            if (d1 == Map.INF || d2 == Map.INF) {
+            var free = this.getFree();
+            var d1 = this.way(p1.x, p1.y, p2.x, p2.y, [p1, p2]);
+            var d2 = this.way(p2.x, p2.y, p1.x, p1.y, [p1, p2]);
+            var d3 = this.way(free.x, free.y, p1.x, p1.y, [p1, p2]);
+            if (d1 == Map.INF || d2 == Map.INF || d3 == Map.INF) {
                 this.set(p.x, p.y, prev);
                 --closed;
             }
@@ -533,8 +535,17 @@ export class Map extends State {
             this.ways[k].push({ x: this.exit[k].x, y: this.exit[k].y + 1 });
         }
     }
+
+    getFree() {
+        for (var i = 0; i < this.w; ++i)
+            for (var j = 0; j < this.h; ++j)
+                if (this.get(i, j) == tile_floor) {
+                    return {x: i, y: j};
+                }
+        return {x: 0, y: 0};
+    }
     
-    way(x1, y1, x2, y2): number {
+    way(x1, y1, x2, y2, closed): number {
         var queue = [];
         queue.push(this.wrap(x1, y1));
         var d = new Array(this.w);
@@ -554,7 +565,14 @@ export class Map extends State {
                 var ny = y + dy[i];
                 if (nx >= 0 && nx < this.w && ny >= 0 && ny < this.h && d[nx][ny] > d[x][y] + 1 && this.get(nx, ny) != tile_unbreakable) {
                     d[nx][ny] = d[x][y] + 1;
-                    if (!(nx == x2 && ny == y2)) {
+                    var move: bool = true;
+                    for (var el in closed) {
+                        if (closed[el].x == nx && closed[el].y == ny) {
+                            move = false;
+                            break;
+                        }
+                    }
+                    if (move) {
                         queue.push(this.wrap(nx, ny));
                     }
                 } 
