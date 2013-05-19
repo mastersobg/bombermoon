@@ -12,7 +12,7 @@ app.use(express.static(__dirname + "/../com"));
 app.use(express.bodyParser());
 
 var server = http.createServer(app);
-var websocket = io.listen(server);
+var websocket = io.listen(server, { log: false });
 server.listen(3010);
 
 class Room {
@@ -42,12 +42,12 @@ class Room {
             inBuffer.source = bufArr;
             observer.decode(inBuffer);
         }).on('disconnect', function () {
+            players--;
         });
         observer.sendBuf = (buf: Game.Buffer) => {
             if (socket.disconnected) {
                 return false;
             }
-            console.log("sending data");
             socket.emit('game', (<Game.ArrBuffer>buf).source);
             return true;
         };
@@ -55,8 +55,10 @@ class Room {
 }
 
 var rooms: Room[] = [];
+var players = 0;
 
 websocket.sockets.on('connection', function (socket) {
+    players++;
     for (var i = 0; i < rooms.length; i++) {
         if (rooms[i].countOfPlayers() < 4) {
             rooms[i].join(socket);
@@ -69,12 +71,20 @@ websocket.sockets.on('connection', function (socket) {
     rooms.push(room);
 });
 
+var pp = 0, pr = 0;
+
 setInterval(function () {
     var j = 0;
     for (var i = 0; i < rooms.length; i++)
-        if (rooms[i].countOfPlayers() != 0)
+        if (rooms[i].countOfPlayers() != 0) {
             rooms[j++] = rooms[i];
+        }
     while (rooms.length > j) {
         rooms.pop().stop();
+    }
+    if (pp != players || pr != rooms.length) {
+        console.log("total players: " + players + " rooms: " + rooms.length);
+        pp = players;
+        pr = rooms.length;
     }
 }, 1000);
