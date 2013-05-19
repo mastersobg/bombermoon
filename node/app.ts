@@ -46,5 +46,6 @@ websocket.sockets.on('connection', function (socket) {
         }
         console.log("sending data");
         socket.emit('game', (<Game.ArrBuffer>buf).source);
+        return true;
     };
 });
