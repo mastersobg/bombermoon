@@ -751,7 +751,7 @@ export class GameServer extends State {
         var left = [];
         for (var i = 0; i < this.observers.length; i++) {
             var obs = this.observers[i];
-            if (obs.active < 15) {
+            if (obs.active < 5) {
                 this.observers[j++] = obs;
             } else {
                 left.push(obs);
