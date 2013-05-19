@@ -519,12 +519,13 @@ export class Map extends State {
             }
             --cnt;
         }
-        var walls = (this.w * this.h - closed) * 0.6 | 0;
+        var walls = (this.w * this.h - closed) * 0.5 | 0;
         while (walls > 0) {
             var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
-            if (this.get(p.x, p.y) == tile_floor)
+            if (this.get(p.x, p.y) == tile_floor) {
                 this.set(p.x, p.y, tile_wall);
-            --walls;
+                --walls;
+            }
         }
 
         this.ways = [[], [], []];
