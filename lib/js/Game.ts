@@ -454,8 +454,7 @@ export class Map extends State {
                 w.push({ x: x, y: y });
             }
             if (this.get(x, y - 1) == tile_exit + 3 - team) {
-                console.log("WIN");
-                //TODO:WIN
+                this.gs.server.teamWin(team);
                 break;
             }
             if (this.get(x + dx, y + dy) == pas) {
@@ -673,6 +672,7 @@ export class GameState extends Router {
     map: Map;
 
     tick = 0;
+    win = 0;
     unixTime = 0;
     uid = 0;
 
@@ -746,7 +746,10 @@ export class GameServer extends State {
     observers: Observer[] = [];
     obsById: Observer[] = [null, null, null, null, null];
 
+    static END_TIME = 18;
+
     orders: Order[] = [];
+    endCount: number = 0;
 
     beforeTick() {
         while (this.orders.length > 0)
@@ -767,11 +770,35 @@ export class GameServer extends State {
         }
     }
 
+    teamWin(team: number) {
+        if (this.gs.win == 0) {
+            this.gs.win = team;
+        }
+    }
+
+    resetLevel() {
+        this.gs.tick = 0;
+        this.gs.win = 0;
+        this.endCount = 0;
+        this.gs.uid++;
+        this.gs.map.generate();
+        var list = this.gs.units.list;
+        for (var i = 0; i < list.length; i++)
+            if (list[i])
+                list[i].leaveGameState();
+    }
+
     nowTick() {
         for (var i = 0; i < this.orders.length; i++) {
             this.orders[i].execute(this.gs);
         }
         this.gs.unixTime = Date.now() / 1000 | 0;
+        if (this.gs.win != 0) {
+            this.endCount++;
+            if (this.endCount >= GameServer.END_TIME) {
+                this.resetLevel();
+            }
+        }
 
         var j = 0;
         var left = [];
@@ -872,6 +899,7 @@ export class GameServer extends State {
                 outBuf.push(CODE_DIFF);
                 outBuf.push(obs.gameUid);
                 outBuf.push(this.respawnCoolDown[obs.playerId]);
+                outBuf.push(this.gs.win);
                // outBuf.push(this.gs.unixTime);
                 this.gs.encode(outBuf);
             }
