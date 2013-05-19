@@ -1,7 +1,7 @@
-export var tile_floor = 2, tile_wall = 1, tile_unbreakable = 3;
-export var tile_road1 = 4, tile_road2 = 5;
-export var tile_entrance_free = 6, tile_exit_free = 7, tile_entrance1 = 8, tile_exit1 = 9;
-export var tile_entrance2 = 10, tile_exit2 = 11;
+export var tile_unbreakable = 0, tile_wall = 1, tile_floor = 2;
+export var tile_road = 4;
+export var tile_active = 8;
+export var tile_exit = tile_road + tile_active + 16;
 export var ORDER_TICK = 1, ORDER_KEY = 2, ORDER_BOMB = 3;
 
 export var unit_char = 1, unit_bomb = 2, unit_explosion = 3;
@@ -378,12 +378,98 @@ export class Map extends State {
             this.field.push(tile_floor);
     }
 
+    isGood(x: number, y: number, team: number): bool {
+        var v = this.get(x, y);
+        if ((v & tile_exit) == tile_exit) return false;
+        return (v&3)==team;
+    }
+
+    isBreakable(x: number, y: number, team: number): bool {
+        var v = this.get(x, y);
+        return ((v & tile_exit) != tile_exit &&
+                (v & 3) == 3 - team);
+    }
+
+    doBreak(x: number, y: number, team: number) {
+        var v = this.get(x, y);
+        if ((v & tile_exit) != tile_exit &&
+                (v & 3) == 3 - team) {
+            if ((v & tile_road) != 0) {
+                if ((v & tile_active) != 0) {
+                    v ^= tile_active;
+                    var w = this.ways[3 - team];
+                    var j = w.length;
+                    for (var i = 0; i < w.length; i++) {
+                        if (w[i].x == x && w[i].y == y)
+                            j = i;
+                        if (i >= j)
+                            this.set(w[i].x, w[i].y, this.get(w[i].x, w[i].y) ^ tile_active);
+                    }
+                } else v ^= tile_road;
+            }
+            else v ^= 3;
+            this.set(x, y, v);
+        }
+    }
+
+    ways = [[], [], []];
+    
+    doActivate(x: number, y: number, team: number) {
+        if ((this.get(x, y) & tile_active) != 0)
+            return;
+        var w = this.ways[team];
+        if (w[0].x == x && w[0].y == y) {
+            this.doActivateWay(x, y, 0, 1, team);
+            return;
+        }
+        for (var i = 0; i < w.length; i++) {
+            if (Math.abs(w[i].x - x) + Math.abs(w[i].y - y) == 1) {
+                this.doActivateWay(x, y, x - w[i].x, y - w[i].y, team);
+            }
+        }
+    }
+
+    doActivateWay(x: number, y: number, dx: number, dy: number, team:number) {
+        var w = this.ways[team];
+        var act = tile_active + tile_road + team;
+        var pas = tile_road + team;
+        while (true) {
+            this.set(x, y, act);
+            if (w[0].x != x && w[0].y != y) {
+                w.push(x, y);
+            }
+            if (this.get(x + dx, y + dy) == pas) {
+                x += dx;
+                y += dy;
+            } else
+                if (this.get(x + dy, y - dx) == pas) {
+                    x += dy;
+                    y -= dx;
+                    var t = dx; dx = dy; dy = -t;
+                } else
+                    if (this.get(x - dy, y + dx) == pas) {
+                        x -= dy;
+                        y += dx;
+                        var t = dx; dx = -dy; dy = t;
+                    } else break;
+        }
+        var l1 = this.get(x - dy, y + dx);
+    }
+
+    exit = [{x:0, y:0}, {x:3, y:3}, {x:7, y:7}];
+
     generate(): void {
         for (var x = 0; x < this.w; x++)
             for (var y = 0; y < this.h; y++)
                 if (x % 2 == 1 && y % 2 == 1)
                     this.set(x, y, tile_unbreakable);
-                else this.set(x, y, Math.random() * 2 | 0);
+                else this.set(x, y, (Math.random() * 2 | 0) + 1);
+        this.ways = [[], [], []];
+        for (var k = 1; k <= 2; k++) {
+            this.set(this.exit[k].x, this.exit[k].y, (tile_exit | k));
+            this.set(this.exit[k].x, this.exit[k].y + 1, (tile_road | tile_active | k));
+            this.ways[k].push(this.exit[k].x, this.exit[k].y+1);
+        }
     }
 
     beforeTick() {
@@ -889,7 +975,7 @@ export class Character extends Unit {
         if (this.keys != 0) {
             var x1 = this.x + Character.dx[this.keys];
             var y1 = this.y + Character.dy[this.keys];
-            if (this.gs.map.get(x1, y1) == this.team) {
+            if (this.gs.map.isGood(x1, y1, this.team)) {
                 this.x = x1;
                 this.y = y1;
                 this.modified |= Unit.BIT_POS;
@@ -940,60 +1026,64 @@ export class Bomb extends Unit {
     }
 
     cellsToExplode(power) {
-        this.processCell(this.x, this.y);
+        var map = this.gs.map;
+        var srv = this.gs.server;
+        if (map.isBreakable(this.x, this.y, this.team)) {
+            srv && map.doBreak(this.x, this.y, this.team);
+            return { up: 0, down: 0, left: 0, right: 0};
+        }
+        map.doActivate(this.x, this.y, this.team);
         // up
-        var up = 0, down = 0, right = 0, left = 0;
+        var up = power, down = power, right = power, left = power;
         for (var i = 1; i <= power; ++i) {
             var x = this.x, y = this.y - i;
-            var ret = this.processCell(x, y);
-            up += ret.add;
-            if (ret.ret) {
+            if (!map.isGood(x, y, this.team)) {
+                up = i-1;
+                if (srv && map.isBreakable(x, y, this.team)) {
+                    up = i;
+                    map.doBreak(x, y, this.team);
+                }
                 break;
             }
         }
         // down
         for (var i = 1; i <= power; ++i) {
             var x = this.x, y = this.y + i;
-            var ret = this.processCell(x, y);
-            down += ret.add;
-            if (ret.ret) {
+            if (!map.isGood(x, y, this.team)) {
+                down = i - 1;
+                if (srv && map.isBreakable(x, y, this.team)) {
+                    down = i;
+                    map.doBreak(x, y, this.team);
+                }
                 break;
             }
         }
         // left
         for (var i = 1; i <= power; ++i) {
             var x = this.x - i, y = this.y;
-            var ret = this.processCell(x, y);
-            left += ret.add;
-            if (ret.ret) {
+            if (!map.isGood(x, y, this.team)) {
+                left = i - 1;
+                if (srv && map.isBreakable(x, y, this.team)) {
+                    left = i;
+                    map.doBreak(x, y, this.team);
+                }
                 break;
             }
         }
         // right
         for (var i = 1; i <= power; ++i) {
             var x = this.x + i, y = this.y;
-            var ret = this.processCell(x, y);
-            right += ret.add;
-            if (ret.ret) {
+            if (!map.isGood(x, y, this.team)) {
+                right = i - 1;
+                if (srv && map.isBreakable(x, y, this.team)) {
+                    right = i;
+                    map.doBreak(x, y, this.team);
+                }
                 break;
             }
         }
         return {up: up, down: down, left: left, right: right};
 
-    }
-
-    processCell(x, y) {
-        var cellType = this.gs.map.get(x, y);
-        var wall = this.team == 2 ? tile_wall : tile_floor;
-        var free = this.team == 2 ? tile_floor : tile_wall;
-        if (cellType == tile_unbreakable) {
-            return {ret: true, add: 0};
-        }
-        this.gs.map.set(x, y, free);
-        if (cellType == wall) {
-            return {ret: true, add: 1};
-        }
-        return {ret: false, add: 1};
     }
 
 

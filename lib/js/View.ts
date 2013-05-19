@@ -190,12 +190,6 @@ export class Tile {
 
     tileOf(x: number, y: number): number {
         var tile = this.gs.map.get(x, y);
-        if (tile == Game.tile_road1) {
-
-        }
-        if (tile == Game.tile_road2) {
-
-        }
         if (tile == Game.tile_unbreakable) {
             if (x == -1 || x == this.gs.map.w || y == -1 || y == this.gs.map.h)
                 return this.tileOfBorder(x, y);
@@ -204,23 +198,53 @@ export class Tile {
         if (tile == Game.tile_wall) {
             return this.tileOfWall(x, y);
         }
-        if (tile == Game.tile_entrance_free) {
-            return this.get(3, 2);
+        if (tile == Game.tile_floor) {
+            return this.get(1, 1);
         }
-        if (tile == Game.tile_exit_free) {
-            return this.get(4, 2);
+        if ((tile & Game.tile_exit) == Game.tile_exit) {
+            var v = 2;
+            var dn = this.gs.map.get(x, y + 1);
+            if ((dn & Game.tile_road) == Game.tile_road)
+                v = (dn & 3) - 1;
+            return this.get(2 + (tile&3), v);
         }
-        if (tile == Game.tile_entrance1) {
-            return this.get(3, 1);
-        }
-        if (tile == Game.tile_exit1) {
-            return this.get(4, 1);
-        }
-        if (tile == Game.tile_entrance2) {
-            return this.get(3, 0);
-        }
-        if (tile == Game.tile_exit2) {
-            return this.get(4, 0);
+        if ((tile & Game.tile_road) == Game.tile_road) {
+            var u1 = this.gs.map.get(x, y - 1), d1 = this.gs.map.get(x, y + 1),
+                l1 = this.gs.map.get(x - 1, y), r1 = this.gs.map.get(x, y + 1);
+            if ((d1 & Game.tile_exit) != 0) d1 = 0;
+            if ((l1 & Game.tile_exit) != 0) l1 = 0;
+            if ((r1 & Game.tile_exit) != 0) r1 = 0;
+            var up = (tile & u1) == tile;
+            var down = (tile & d1) == tile;
+            var left = (tile & l1) == tile;
+            var right = (tile & r1) == tile;
+            var row = 0, col = 0;
+            if (up) {
+                if (down) {
+                } else if (left) {
+                    row = 2;
+                    col = 1;
+                } else if (right) {
+                    row = 2;
+                    col = 0;
+                }
+            } else if (down) {
+                if (left) {
+                    row = 1; col = 1;
+                } else if (right) {
+                    row = 1; col = 2;
+                }
+            } else {
+                row = 0;
+                col = 1;
+            }
+            if ((tile & Game.tile_active) == Game.tile_active)
+                col += 2;
+            if ((tile & 1) == 1)
+                col += 4;
+            row += 2;
+            col += 3;
+            return this.get(row, col);
         }
         return this.get(1, 1);
     }
