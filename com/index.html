@@ -257,6 +257,32 @@
 </script>
 </head>
 <body>
+<style>
+	* {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	#payment-form {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 480px;
+		height: 352px;
+	}
+
+	#payment-submit {
+		position: absolute;
+		z-index: 1;
+		top: 296px;
+		left: 50%;
+		width: 192px;
+		height: 48px;
+		margin-left: -96px;
+		opacity: 0;
+	}
+</style>
 <canvas id="canvas0" width="480" height="352"></canvas>
 
 <form id="payment-form" action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
