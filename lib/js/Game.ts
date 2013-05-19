@@ -855,11 +855,13 @@ export class GameServer extends State {
         var w = this.gs.map.w / 2 | 0;
         var h = this.gs.map.h / 2 | 0;
         while (iters > 0) {
-            p = this.gs.map.wrap(this.gs.map.rnd(w), this.gs.map.rnd(h));
+            p = this.gs.map.wrap(this.gs.map.rnd(w+1), this.gs.map.rnd(h+1));
             if (player == 2) {
                 p.x += w;
                 p.y += h;
             }
+            p.x = Math.min(this.gs.map.w - 1, p.x);
+            p.y = Math.min(this.gs.map.h - 1, p.y);
             if (this.gs.map.get(p.x, p.y) == player) 
                 break;
             --iters;
