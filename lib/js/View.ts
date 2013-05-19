@@ -176,6 +176,38 @@ export class GameApp {
                 explosionView.draw(anim, atlas, context);
             }
         }
+        if (this.gs.client.playerId != 0) {
+            var mainChar = this.gs.client.mainCharacter;
+            anim = this.getAnimation("arrow");
+            if (mainChar != null) {
+                var mainView = mainChar.view;
+                context.drawImage(atlas,
+                        anim.sx, anim.sy,
+                        anim.frameWidth, anim.frameHeight,
+                        mainView.x, mainView.y - 1,
+                        anim.renderWidth, anim.renderHeight);
+                anim = this.getAnimation("bombCoolDown");
+                var frame = 0;
+                if (mainChar.bombsCount != 2) {
+                    frame = 1 - mainChar.getBombsPlaced();
+                } else {
+                    frame = 4 - mainChar.getBombsPlaced();
+                }
+                context.drawImage(atlas,
+                            anim.sx + frame * anim.frameWidth, anim.sy,
+                            anim.frameWidth, anim.frameHeight,
+                            w-1, -1,
+                            anim.renderWidth, anim.renderHeight);
+            } else {
+                var team = this.gs.client.playerId <= 2 ? 1 : 2;
+                var p = this.gs.map.exit[team];
+                context.drawImage(atlas,
+                        anim.sx, anim.sy,
+                        anim.frameWidth, anim.frameHeight,
+                        p.x, p.y - 1,
+                        anim.renderWidth, anim.renderHeight);
+            }            
+        }
         context.restore();
     }
 }
@@ -206,14 +238,14 @@ export class Tile {
             var dn = this.gs.map.get(x, y + 1);
             if ((dn & Game.tile_road) == Game.tile_road)
                 v = (dn & 3) - 1;
-            return this.get(2 + (tile&3), v);
+            return this.get(5 - (tile&3), v);
         }
         if ((tile & Game.tile_road) == Game.tile_road) {
             var u1 = this.gs.map.get(x, y - 1), d1 = this.gs.map.get(x, y + 1),
-                l1 = this.gs.map.get(x - 1, y), r1 = this.gs.map.get(x, y + 1);
-            if ((d1 & Game.tile_exit) != 0) d1 = 0;
-            if ((l1 & Game.tile_exit) != 0) l1 = 0;
-            if ((r1 & Game.tile_exit) != 0) r1 = 0;
+                l1 = this.gs.map.get(x - 1, y), r1 = this.gs.map.get(x+1, y);
+            if ((d1 & Game.tile_exit) == Game.tile_exit) d1 = 0;
+            if ((l1 & Game.tile_exit) == Game.tile_exit) l1 = 0;
+            if ((r1 & Game.tile_exit) == Game.tile_exit) r1 = 0;
             var up = (tile & u1) == tile;
             var down = (tile & d1) == tile;
             var left = (tile & l1) == tile;
@@ -232,7 +264,7 @@ export class Tile {
                 if (left) {
                     row = 1; col = 1;
                 } else if (right) {
-                    row = 1; col = 2;
+                    row = 1; col = 0;
                 }
             } else {
                 row = 0;

@@ -16,7 +16,7 @@
             }
         }
     
-        app.startTestServer();
+        //app.startTestServer();
     }
 
     function addAnimations(zoom, anims) {
@@ -36,13 +36,15 @@
 
     var defZoom = 32;
     addAnimations(defZoom, {
-        tiles: {sx:0, sy:0, sizeX: 12, sizeY: 5},
+        tiles: {sx:0, sy:0, sizeX: 11, sizeY: 5},
         char1: {sy:5*defZoom, sx: 0, sizeX: 4, sizeY: 4, speed: 100},
         char2: {sy:5*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 4, speed: 100},
         bomb1: {sy:10*defZoom, sx:0, sizeX: 4, sizeY: 1, speed: 100},
         bomb2: {sy:10*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100},
         expl1: {sy:12*defZoom, sx: 0, sizeX: 4, sizeY: 1, speed: 100},
-        expl2: {sy:12*defZoom, sx:4*defZoom, sizeX: 4, sizeY: 1, speed: 100}
+        expl2: {sy:12 * defZoom, sx: 4 * defZoom, sizeX: 4, sizeY: 1, speed: 100 },
+        arrow: { sy: 18 * defZoom, sx: 0, sizeX: 1, sizeY: 1 },
+        bombCoolDown: {sy: 18*defZoom, sx: 4*defZoom, sizeX: 5, sizeY: 1}
     });
 
     function onLoad(err) {

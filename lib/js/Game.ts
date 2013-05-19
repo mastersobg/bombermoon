@@ -133,6 +133,7 @@ export class Unit extends State {
     static BIT_CONSTANT = 1;
     static BIT_POS = 2;
     static BIT_KEY = 4;
+    static BIT_COOLDOWN = 8;
 
     view: UnitView = null;
     id: number = 0;
@@ -371,6 +372,9 @@ export class Units extends State {
 }
 
 export class Map extends State {
+
+    static INF = 1 << 29;
+
     constructor(public gs: GameState, public w: number, public h: number) {
         super();
         gs.childs.push(this);
@@ -405,6 +409,9 @@ export class Map extends State {
                         if (i >= j)
                             this.set(w[i].x, w[i].y, this.get(w[i].x, w[i].y) ^ tile_active);
                     }
+                    while (w.length > j && w.length>1) {
+                        w.pop();
+                    }
                 } else v ^= tile_road;
             }
             else v ^= 3;
@@ -415,16 +422,24 @@ export class Map extends State {
     ways = [[], [], []];
     
     doActivate(x: number, y: number, team: number) {
-        if ((this.get(x, y) & tile_active) != 0)
+        var act = tile_active + tile_road + team;
+        if (this.get(x, y) == act)
             return;
+        var pas = tile_road + team;
         var w = this.ways[team];
         if (w[0].x == x && w[0].y == y) {
             this.doActivateWay(x, y, 0, 1, team);
             return;
-        }
+        } else if (this.get(w[0].x, w[0].y) != act)
+            return;
         for (var i = 0; i < w.length; i++) {
             if (Math.abs(w[i].x - x) + Math.abs(w[i].y - y) == 1) {
+                for (var j = i + 1; j < w.length; j++)
+                    this.set(w[j].x, w[j].y, pas);
+                while (w.length > i+1)
+                    w.pop();
                 this.doActivateWay(x, y, x - w[i].x, y - w[i].y, team);
+                break;
             }
         }
     }
@@ -435,8 +450,13 @@ export class Map extends State {
         var pas = tile_road + team;
         while (true) {
             this.set(x, y, act);
-            if (w[0].x != x && w[0].y != y) {
-                w.push(x, y);
+            if (w[0].x != x || w[0].y != y) {
+                w.push({ x: x, y: y });
+            }
+            if (this.get(x, y - 1) == tile_exit + 3 - team) {
+                console.log("WIN");
+                //TODO:WIN
+                break;
             }
             if (this.get(x + dx, y + dy) == pas) {
                 x += dx;
@@ -459,17 +479,97 @@ export class Map extends State {
     exit = [{x:0, y:0}, {x:3, y:3}, {x:7, y:7}];
 
     generate(): void {
-        for (var x = 0; x < this.w; x++)
-            for (var y = 0; y < this.h; y++)
-                if (x % 2 == 1 && y % 2 == 1)
-                    this.set(x, y, tile_unbreakable);
-                else this.set(x, y, (Math.random() * 2 | 0) + 1);
+        for (var x = 0; x < this.w; x++) {
+            for (var y = 0; y < this.h; y++) {
+                this.set(x, y, tile_floor);
+            }
+        }
+        var midW = this.w / 2 | 0;
+        var midH = this.h / 2 | 0;
+        var p1 = this.wrap(this.rnd(midW), this.rnd(midH));
+        var p2;
+        var iters = 100;
+        var cur = 0;
+        while (cur < iters) {
+            p2 = this.wrap(midW + this.rnd(midW), midH + this.rnd(midH-1));
+            var d = this.way(p1.x, p1.y, p2.x, p2.y);
+            if (d < Map.INF && d > 4) {
+                break;
+            }
+            ++cur;
+        }
+
+        var cnt = this.w * this.h * 0.4 | 0;
+        var closed = cnt;
+        while (cnt > 0) {
+            var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
+            var prev = this.get(p.x, p.y);
+            this.set(p.x, p.y, tile_unbreakable);
+            var d = this.way(p1.x, p1.y, p2.x, p2.y);
+            if (d == Map.INF) {
+                this.set(p.x, p.y, prev);
+                --closed;
+            }
+            --cnt;
+        }
+        var walls = (this.w * this.h - closed) * 0.5 | 0;
+        while (walls > 0) {
+            var p = this.wrap(this.rnd(this.w), this.rnd(this.h));
+            if (this.get(p.x, p.y) != tile_unbreakable)
+                this.set(p.x, p.y, tile_wall);
+            --walls;
+        }
+
         this.ways = [[], [], []];
+        this.exit = [{}, p1, p2];
         for (var k = 1; k <= 2; k++) {
             this.set(this.exit[k].x, this.exit[k].y, (tile_exit | k));
             this.set(this.exit[k].x, this.exit[k].y + 1, (tile_road | tile_active | k));
-            this.ways[k].push(this.exit[k].x, this.exit[k].y+1);
+            this.ways[k].push({ x: this.exit[k].x, y: this.exit[k].y + 1 });
         }
+    }
+    
+    way(x1, y1, x2, y2): number {
+        var queue = [];
+        queue.push(this.wrap(x1, y1));
+        var d = new Array(this.w);
+        for (var i = 0; i < this.w; ++i) {
+            d[i] = new Array(this.h);
+            for (var j = 0; j < this.h; ++j) 
+                d[i][j] = Map.INF;
+        }
+        d[x1][y1] = 0;
+        var dx = [0, 1, 0, -1];
+        var dy = [1, 0, -1, 0];
+        while (queue.length > 0) {
+            var el = queue.shift();
+            var x = el.x, y = el.y;
+            for (var i = 0; i < 4; ++i) {
+                var nx = x + dx[i];
+                var ny = y + dy[i];
+                if (nx >= 0 && nx < this.w && ny >= 0 && ny < this.h && d[nx][ny] > d[x][y] + 1 && this.get(nx, ny) != tile_unbreakable) {
+                    d[nx][ny] = d[x][y] + 1;
+                    queue.push(this.wrap(nx, ny));
+                } 
+            }    
+        }
+        for (var i = 0; i < this.w; ++i) {
+            for (var j = 0; j < this.h; ++j) {
+                if (this.get(i, j) != tile_unbreakable) {
+                    if (d[i][j] == Map.INF)
+                        return Map.INF;
+                }
+            }
+        }    
+        return d[x2][y2];
+    }
+    
+    wrap(x, y) {
+        return {x: x, y: y};
+    }
+
+    rnd(size): number {
+        return Math.floor((Math.random() * size));
     }
 
     beforeTick() {
@@ -523,6 +623,10 @@ export class Map extends State {
         for (var i = 0; i < this.field.length; i++) {
             this.field[i] = buf.pop();
         }
+        for (var i = 0; i < this.field.length; i++)
+            if ((this.field[i] & ~3) == tile_exit) {
+                this.exit[this.field[i] & 3] = {x: i%this.w, y: i/this.w};
+            }
     }
 
 
@@ -947,9 +1051,12 @@ export class Character extends Unit {
     static KEY_UP = 4;
     static dx = [0, 1, 0, -1, 0];
     static dy = [0, 0, 1, 0, -1];
+    static BOMB_COOLDOWN = 12;
 
     team: number = 0;
     keys: number = 0;
+    bombsCount: number = 2;
+    bombCoolDown = [0, 0];
     setupBomb: bool = false;
 
     constructor() {
@@ -964,13 +1071,33 @@ export class Character extends Unit {
         }
     }
 
+    getBombsPlaced() {
+        var cnt = 0;
+        if (this.bombCoolDown[0])
+            cnt++;
+        if (this.bombCoolDown[1])
+            cnt++;
+        return cnt;
+    }
+
     placeBomb() {
+        if (this.getBombsPlaced() >= this.bombsCount)
+            return;
         var bomb = new Bomb(this.x, this.y, this.team);
+        if (!this.bombCoolDown[0])
+            this.bombCoolDown[0] = Character.BOMB_COOLDOWN;
+        else
+            this.bombCoolDown[1] = Character.BOMB_COOLDOWN;
         this.gs.units.add(bomb);
+        this.modified |= Unit.BIT_COOLDOWN;
     }
 
     nowTick(): void {
         this.team = this.player <= 2 ? 1 : 2;
+        if (this.bombCoolDown[0] > 0)
+            this.bombCoolDown[0]--;
+        if (this.bombCoolDown[1] > 0)
+            this.bombCoolDown[1]--;
         if (!this.gs.server) return;
         if (this.keys != 0) {
             var x1 = this.x + Character.dx[this.keys];
@@ -987,12 +1114,20 @@ export class Character extends Unit {
         super.load(buf, modified);
         if ((modified & Unit.BIT_KEY) != 0)
             this.keys = buf.pop();
+        if ((modified & Unit.BIT_COOLDOWN) != 0) {
+            this.bombCoolDown[0] = buf.pop();
+            this.bombCoolDown[1] = buf.pop();
+        }
     }
 
     save(buf: Buffer, modified: number) {
         super.save(buf, modified);
         if ((modified & Unit.BIT_KEY) != 0)
             buf.push(this.keys);
+        if ((modified & Unit.BIT_COOLDOWN) != 0) {
+            buf.push(this.bombCoolDown[0]);
+            buf.push(this.bombCoolDown[1]);
+        }
     }
 }
 
@@ -1102,10 +1237,10 @@ export class Bomb extends Unit {
 
 export class Explosion extends Unit {
 
-    static DEFAULT_POWER = 3;
+    static DEFAULT_POWER = 2;
 
     team: number;
-    power: number = 3;
+    power: number = 2;
     remove: bool = false;
     up: number;
     down: number;
