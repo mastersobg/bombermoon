@@ -787,16 +787,31 @@ export class GameServer extends State {
                     var c = new Character();
                     c.player = obs.playerId;
                     c.team = 1;
-                    switch (c.player) {
-                        case 1: c.x = 0; c.y = 0; break;
-                        case 2: c.x = 0; c.y = this.gs.map.h - 1; break;
-                        case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1; break;
-                        case 4: c.x = this.gs.map.w - 1; c.y = 0; break;
-                    }
+                    var pos = this.generatePos(obs.playerId <= 2 ? 1 : 2);
+                    c.x = pos.x;
+                    c.y = pos.y
                     this.gs.units.add(c);
                 } else this.respawnCoolDown[obs.playerId]--;
             }
         }
+    }
+
+    generatePos(player) {
+        var p;
+        var iters = 50;
+        var w = this.gs.map.w / 2 | 0;;
+        var h = this.gs.map.h / 2 | 0;
+        while (true) {
+            p = this.gs.map.wrap(this.gs.map.rnd(w), this.gs.map.rnd(h));
+            if (player == 2) {
+                p.x += w;
+                p.y += h;
+            }
+            if (this.gs.map.get(p.x, p.y) == player) 
+                break;
+            --iters;
+        }
+        return p;
     }
 
     createOrderById(id: number): Order {
