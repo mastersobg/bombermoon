@@ -266,7 +266,6 @@ export class Units extends State {
         var j = 0;
         for (var i = 0; i < this.list.length; i++)
             if (this.list[i] == null) {
-                console.log("WWW");
             } else {
                 this.list[j] = this.list[i];
                 this.list[j].index = j;
