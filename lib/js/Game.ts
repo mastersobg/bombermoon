@@ -1163,6 +1163,12 @@ export class Character extends Unit {
     placeBomb() {
         if (this.getBombsPlaced() >= this.bombsCount)
             return;
+        var list = this.gs.units.list;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].type == unit_bomb && list[i].x == this.x && list[i].y == this.y)
+                return;
+        }
+
         var bomb = new Bomb(this.x, this.y, this.team);
         if (!this.bombCoolDown[0])
             this.bombCoolDown[0] = Character.BOMB_COOLDOWN;
