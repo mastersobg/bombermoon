@@ -55,6 +55,7 @@ export class GameApp {
     prevTime: number = 0;
     prevUpdate: number = 0;
     animID: number = 0;
+    keyID: number = 0;
 
     setKeys(side) {
         this.gs.client.key.setKeys(side);
@@ -72,6 +73,9 @@ export class GameApp {
         this.prevUpdate = Date.now();
         if (this.animID <= 0) {
             this.animID = (<any> window.requestAnimationFrame)(() => { this.animate(Date.now()) });
+        }
+        if (this.keyID <= 0) {
+            this.keyID = setInterval(() => { if (this.gs) this.gs.client.key.keyTick(); }, 100);
         }
     }
 

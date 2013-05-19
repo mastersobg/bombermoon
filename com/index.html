@@ -10,8 +10,9 @@
             app.receiveMsg(new Game.ArrBuffer(data));
         })
         app.onGameStart = function () {
-            app.gs.client.sendIt = function(buf) {
-                socket.emit("orders", buf.source);
+            app.gs.client.sendIt = function (buf) {
+                if (!socket.disconnected)
+                    socket.emit("orders", buf.source);
             }
         }
     }
@@ -89,7 +90,7 @@
             if ((keyMask & mask) != 0) {
                 keyMask ^= mask;
                 for (var i=1; i<=4; i++)
-                    if ((keyMask & (1<i))!=0)
+                    if ((keyMask & (1<<i))!=0)
                         return app.setKeys(i);
                 app.setKeys(0);
             }

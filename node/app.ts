@@ -38,7 +38,6 @@ websocket.sockets.on('connection', function (socket) {
         inBuffer.source = bufArr;
         observer.decode(inBuffer);
     }).on('disconnect', function () {
-        observer.sessionInSocket++;
     });
     observer.sendBuf = (buf: Game.Buffer) => {
         if (socket.disconnected) {

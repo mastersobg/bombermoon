@@ -561,7 +561,7 @@ export class GameServer extends State {
         var left = [];
         for (var i = 0; i < this.observers.length; i++) {
             var obs = this.observers[i];
-            if (obs.active < 50) {
+            if (obs.active < 15) {
                 this.observers[j++] = obs;
             } else {
                 left.push(obs);
@@ -595,10 +595,10 @@ export class GameServer extends State {
                 c.player = obs.playerId;
                 c.team = 1;
                 switch (c.player) {
-                    case 1: c.x = 0; c.y = 0;
-                    case 2: c.x = this.gs.map.w-1; c.y = 0;
-                    case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1;
-                    case 4: c.x = 0; c.y = this.gs.map.h - 1;
+                    case 1: c.x = 0; c.y = 0; break;
+                    case 2: c.x = 0; c.y = this.gs.map.h - 1; break;
+                    case 3: c.x = this.gs.map.w - 1; c.y = this.gs.map.h - 1; break;
+                    case 4: c.x = this.gs.map.w - 1; c.y = 0; break;
                 }
                 this.gs.units.add(c);
             }
@@ -679,43 +679,34 @@ export class KeyController extends State {
     keysReset: bool = false;
     wasKeys: bool = false;
     go: number = 0;
+    go2: number = 0;
     setupBomb: bool = false;
 
     setKeys(side) {
-        if (side == 0) {
-            if (this.wasKeys)
-                this.keysReset = true;
-            else this.go = side;
-        } else if (side == 5) {
-            this.setupBomb = true;
-            this.wasKeys = true;
-        } else {
-            this.go = side;
-            this.wasKeys = true;
-        }
+        this.go2 = side;
     }
 
     bomb() {
         this.setupBomb = true;
     }
 
-    nowTick() {
+    keyTick() {
         var char = this.gs.client.mainCharacter;
         if (char) {
-            var t = new KeyOrder();
-            t.key = this.go;
-            this.gs.client.orders.push(t);
+            if (this.go2 != this.go) {
+                var t = new KeyOrder();
+                t.key = this.go2;
+                this.go = this.go2;
+                this.gs.client.orders.push(t);
+            }
             if (this.setupBomb) {
+                this.setupBomb = false;
                 var t2 = new BombOrder();
                 this.gs.client.orders.push(t2);
             }
+            if (this.gs.client.orders.length > 0)
+                this.gs.client.sendOrders();
         }
-        this.setupBomb = false;
-        if (this.keysReset) {
-            this.go = 0;
-            this.keysReset = false;
-        }
-        this.wasKeys = false;
     }
 }
 
