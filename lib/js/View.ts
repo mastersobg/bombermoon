@@ -62,10 +62,13 @@ export class GameApp {
     }
 
     keyBomb() {
-        this.gs.client.key.bomb();
+        if (this.gs)
+            this.gs.client.key.bomb();
     }
 
     tilesManager: Tile;
+    static HELP_TIME = 6000;
+    timeInGame: number = GameApp.HELP_TIME;
 
     startGame() {
         this.tilesManager = new Tile(this.gs, this.getAnimation("tiles").sizeX);
@@ -134,11 +137,11 @@ export class GameApp {
             var view = this.gs.client.views[id];
             view.updateFrame(delta, frac);
         }
-        this.draw(frac);
+        this.draw(frac, delta);
         this.animID = (<any>window.requestAnimationFrame)(() => { this.animate(Date.now()) });
     }
 
-    draw(frac: number) {
+    draw(frac: number, deltaTime: number) {
         var zoom = 32;
         var context = canvas.getContext("2d");
         var atlas = this.getResource("tiles");
@@ -248,6 +251,23 @@ export class GameApp {
                 s = "BUGS WIN";
             else s = "ROBOTS WIN";
             (<any>window).drawWord(context, canvas.width/2 - 4*26, canvas.height/2 - 10, s);
+        } else if (this.timeInGame > 0) {
+            var alpha = this.timeInGame / GameApp.HELP_TIME;
+            alpha = 1 - Math.sqrt(1 - alpha);
+            context.globalAlpha = alpha*0.5;
+            context.fillStyle = "black";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.globalAlpha = Math.min(alpha * 4.0, 1.0);
+            (<any>window).drawWordCenter(context, canvas.width / 2, 50, "Use your bombs");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 80, "to blow up");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 110, "enemy roads");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 140, "Your team wins");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 170, "when a way");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 200, "from entrance");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 230, "point to the exit");
+            (<any>window).drawWordCenter(context, canvas.width / 2, 260, "is ready");
+            context.globalAlpha = 1.0;
+            this.timeInGame -= deltaTime;
         }
     }
 }

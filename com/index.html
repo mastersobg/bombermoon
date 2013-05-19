@@ -30,6 +30,11 @@
         app.startTestServer();
     }
     var canvas;
+
+    function drawWordCenter(context, x, y, word) {
+        var anim = animations["font"];
+        drawWord(context, x-anim.renderWidth/2*word.length, y-anim.renderHeight/2, word);
+    }
     
     function drawWord(context, x, y, word) {
         var anim = animations["font"];
@@ -70,19 +75,24 @@
         context.drawImage(robo, 0, h - robo.height);
         context.drawImage(bug, w - bug.width, h - bug.height);
         context.drawImage(splash_logo, (w / 2) - (splash_logo.width / 2), h / 8);
-        context.drawImage(donate, canvas.width / 2 - donate.width / 2, canvas.height - 50);
-        drawWord(context, canvas.width/2 - 26*3, canvas.height - 38, "DONATE");
+        
+        drawWordCenter(context, canvas.width / 2, canvas.height/2 + 50, "CLICK TO JOIN");
+
+        context.drawImage(donate, canvas.width / 2 - donate.width / 2, canvas.height - donate.height - 8);
+        drawWord(context, canvas.width / 2 - 26 * 3, canvas.height - donate.height +4, "DONATE");
     }
 
     function startup() {
         canvas = document.getElementById("canvas0");
         var splashInterval = window.setInterval(function () { drawSplash(); }, 100);
         var clicker = function () {
+            $("#payment-form").hide();
             canvas.removeEventListener("click", clicker);
             clearInterval(splashInterval);
             doConnect();
         }
         canvas.addEventListener("click", clicker);
+        $("#payment-form").show();
     }
 
     function addAnimations(zoom, anims) {
