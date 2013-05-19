@@ -30,6 +30,23 @@
         app.startTestServer();
     }
     var canvas;
+    
+    function drawWord(context, x, y, word) {
+        var anim = animations["font"];
+        var res = resources["font"];
+        for (var i = 0; i < word.length ; i++) {
+            var c = -1;
+            var d = word.charAt(i);
+            if (d >= 'A' && d <= 'Z')
+                c = d - 'A';
+            if (d >= 'a' && d <= 'z')
+                c = d - 'a';
+            if (c >= 0) {
+                context.drawImage(res, (c % anim.sizeX) * anim.frameWidth, (c / anim.sizeX | 0) * anim.frameHeight, anim.frameWidth, anim.frameHeight,
+                        x + i * anim.renderWidth, y, anim.renderWidth, anim.renderHeight);
+            }
+        }
+    }
 
     window.drawSplash = function () {
         var w = canvas.width, h = canvas.height;
@@ -50,6 +67,7 @@
         context.drawImage(robo, 0, h - robo.height);
         context.drawImage(bug, w - bug.width, h - bug.height);
         context.drawImage(splash_logo, (w / 2) - (splash_logo.width / 2), h / 8);
+        drawWord(context, 0, 0, "TEST");
     }
 
     function startup() {
@@ -91,6 +109,9 @@
         bombCoolDown: { sy: 18 * defZoom, sx: 4 * defZoom, sizeX: 5, sizeY: 1 },
         respawnCoolDown: { sy: 18 * defZoom, sx: defZoom, sizeX: 1, sizeY: 1, frameWidth: defZoom * 3, frameHeight: defZoom }
     });
+    addAnimations(1, {
+        font: {sx: 0, sy:0, sizeX: 7, sizeY:4, frameWidth: 13, frameHeight:10}
+    });
 
     function onLoad(err) {
         resLoaded++;
@@ -105,9 +126,6 @@
         img.onload = onLoad;
         img.src = src;
         resources[name] = img;
-    }
-
-    function drawSplash() {
     }
 
     $(function () {
@@ -127,6 +145,7 @@
         tryLoadImage("bm-robo-splash", "img/splash/bm-robo-splash.png");
         tryLoadImage("bm-moon_nano", "img/splash/bm-moon_nano.png");
         tryLoadImage("bm-moon_mini", "img/splash/bm-moon_mini.png");
+        tryLoadImage("font", "img/splash/font.png");
         tryLoadImage("bm-moon", "img/splash/bm-moon.png");
         resCount++;
         require(["js/Game", "js/View"], function (Game, View) {
