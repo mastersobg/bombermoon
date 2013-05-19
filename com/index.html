@@ -62,6 +62,7 @@
         var robo = resources["bm-robo-splash"];
         var bug = resources["bm-bug-splash"];
         var splash_logo = resources["bm-logo-splash"];
+        var donate = resources["donate"];
 
         context.drawImage(moon_nano, (w / 2) - (moon_nano.width / 2), (h / 4) - (moon_nano.height / 2));
         context.drawImage(moon_mini, (w / 2) - (moon_mini.width / 2), (h / 2) - (moon_mini.height / 2));
@@ -69,7 +70,8 @@
         context.drawImage(robo, 0, h - robo.height);
         context.drawImage(bug, w - bug.width, h - bug.height);
         context.drawImage(splash_logo, (w / 2) - (splash_logo.width / 2), h / 8);
-        //drawWord(context, 100, 100, "TEST");
+        context.drawImage(donate, canvas.width / 2 - donate.width / 2, canvas.height - 50);
+        drawWord(context, canvas.width/2 - 26*3, canvas.height - 38, "DONATE");
     }
 
     function startup() {
@@ -149,6 +151,7 @@
         tryLoadImage("bm-moon_mini", "img/splash/bm-moon_mini.png");
         tryLoadImage("font", "img/splash/font.png");
         tryLoadImage("bm-moon", "img/splash/bm-moon.png");
+        tryLoadImage("donate", "img/donate-btn.png");
         resCount++;
         require(["js/Game", "js/View"], function (Game, View) {
             window.Game = Game;
@@ -245,5 +248,22 @@
 </head>
 <body>
 <canvas id="canvas0" width="480" height="352"></canvas>
+
+<form id="payment-form" action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+	<input type="hidden" name="business" value="AY3UHQFQS5ULA">
+	<input type="hidden" name="cmd" value="_donations">
+	<input type="hidden" name="lc" value="CA">
+	<input type="hidden" name="item_name" value="Bombermoon">
+	<input type="hidden" name="currency_code" value="USD">
+	<input type="hidden" name="button_subtype" value="services">
+	<input type="hidden" name="no_note" value="1">
+	<input type="hidden" name="no_shipping" value="1">
+	<input type="hidden" name="custom" value="bombermoon">
+	<input type="hidden" name="bn" value="PP-DonationsBF:btn_donateCC_LG.gif:NonHosted">
+	<input type="hidden" name="amount" value="10.00">
+	<input id="payment-submit" type="submit" value="Donate" name="submit">
+	<img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1" />
+</form>
+
 </body>
 </html>

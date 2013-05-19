@@ -1,0 +1,16 @@
+{
+  "name": "Bomber Moon",
+  "description": "Bomber Moon online game client",
+  "launch_path": "/",
+  "icons": {
+    "30": "/img/bm-moon-30x30.png",
+    "60": "/img/bm-moon-60x60.png",
+	"128": "/img/bm-moon-128x128.png"
+  },
+  "developer": {
+    "name": "bombermine.com@gmail.com",
+    "url": "http://bombermine.com"
+  },
+  "fullscreen": "true",
+  "default_locale": "en"
+}
