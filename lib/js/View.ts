@@ -118,6 +118,7 @@ export class GameApp {
                 //this.gs.unixTime = buf.pop();
                 //TODO: make it in personal State
                 this.gs.client.respawnCoolDown = buf.pop();
+                this.gs.win = buf.pop();
                 this.gs.inputBuf = buf;
                 this.gs.gameLoop();
                 this.prevUpdate = Date.now();
@@ -237,6 +238,13 @@ export class GameApp {
             }            
         }
         context.restore();
+        if (this.gs.win != 0) {
+            var s = "";
+            if (this.gs.win == 1)
+                s = "BUGS WIN";
+            else s = "ROBOTS WIN";
+            (<any>window).drawWord(context, canvas.width/2 - 4*26, canvas.height/2 - 10, s);
+        }
     }
 }
 
@@ -270,7 +278,8 @@ export class Tile {
         }
         if ((tile & Game.tile_road) == Game.tile_road) {
             var u1 = this.gs.map.get(x, y - 1), d1 = this.gs.map.get(x, y + 1),
-                l1 = this.gs.map.get(x - 1, y), r1 = this.gs.map.get(x+1, y);
+                l1 = this.gs.map.get(x - 1, y), r1 = this.gs.map.get(x + 1, y);
+            if ((d1 & Game.tile_exit) == Game.tile_exit) u1 |= 3;
             if ((d1 & Game.tile_exit) == Game.tile_exit) d1 = 0;
             if ((l1 & Game.tile_exit) == Game.tile_exit) l1 = 0;
             if ((r1 & Game.tile_exit) == Game.tile_exit) r1 = 0;
